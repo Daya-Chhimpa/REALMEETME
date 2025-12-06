@@ -1,0 +1,72 @@
+===========================================
+Photo Upload Setup Guide
+===========================================
+
+✅ Package Installed: react-native-image-picker
+
+ANDROID PERMISSIONS SETUP:
+--------------------------
+
+1. Open: android/app/src/main/AndroidManifest.xml
+
+2. Add these permissions BEFORE <application> tag:
+
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+3. Save the file
+
+4. Rebuild the app:
+   npm run android
+
+===========================================
+
+HOW IT WORKS:
+-------------
+
+1. Click on any photo slot (+)
+2. Modal opens with 3 options:
+   - 🖼️ From Gallery
+   - 📘 From Facebook (Coming Soon)
+   - 📷 Take a selfie
+
+3. Select "From Gallery" or "Take a selfie"
+4. Pick image from emulator/device
+5. Image will show in the selected slot
+6. Repeat for up to 5 photos
+7. Click SUBMIT or SKIP
+
+===========================================
+
+EMULATOR TESTING:
+-----------------
+
+For Android Emulator:
+1. Open emulator
+2. Click on camera icon (...)
+3. Go to "Camera" settings
+4. Enable "Virtual scene" or add test images
+5. Or drag & drop images into emulator
+
+For Gallery:
+1. Open emulator
+2. Drag & drop images into emulator
+3. Images will be in Gallery/Photos app
+4. Now you can select them in the app
+
+===========================================
+
+FEATURES IMPLEMENTED:
+--------------------
+✅ Image picker from gallery
+✅ Camera capture
+✅ Image preview in slots
+✅ Multiple photo upload (up to 5)
+✅ Replace existing photos
+✅ Skip option
+✅ Error handling
+✅ Loading states
+
+===========================================
