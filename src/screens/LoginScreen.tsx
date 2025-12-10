@@ -22,6 +22,7 @@ export const LoginScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -114,7 +115,9 @@ export const LoginScreen: React.FC = () => {
                 placeholder="Enter your password"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
+                rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+                onRightIconPress={() => setShowPassword(!showPassword)}
               />
               <TouchableOpacity
                 onPress={handleForgotPassword}

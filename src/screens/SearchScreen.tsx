@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,11 @@ import {
   TextInput,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {Sidebar} from '../components/Sidebar';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Sidebar } from '../components/Sidebar';
+import { useNavigation } from '../navigation/NavigationContext';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface FilterOption {
   id: string;
@@ -27,8 +27,8 @@ interface FilterOption {
 }
 
 const GENDER_OPTIONS: FilterOption[] = [
-  {id: 'women', label: 'Women', icon: '👩'},
-  {id: 'men', label: 'Men', icon: '👨'},
+  { id: 'women', label: 'Women', icon: '👩' },
+  { id: 'men', label: 'Men', icon: '👨' },
 ];
 
 const SLIDER_WIDTH = width - spacing[6] * 2 - 70 - spacing[3] * 2; // Account for label and value
@@ -43,7 +43,7 @@ interface SliderProps {
   sliderWidth: number;
 }
 
-const CustomSlider: React.FC<SliderProps> = ({value, min, max, onValueChange, sliderWidth}) => {
+const CustomSlider: React.FC<SliderProps> = ({ value, min, max, onValueChange, sliderWidth }) => {
   const currentValue = useRef(value);
 
   const percentage = ((value - min) / (max - min)) * 100;
@@ -69,7 +69,7 @@ const CustomSlider: React.FC<SliderProps> = ({value, min, max, onValueChange, sl
           onValueChange(newValue);
         }
       },
-      onPanResponderRelease: () => {},
+      onPanResponderRelease: () => { },
     })
   ).current;
 
@@ -78,15 +78,17 @@ const CustomSlider: React.FC<SliderProps> = ({value, min, max, onValueChange, sl
       <View style={sliderStyles.track}>
         <LinearGradient
           colors={colors.gradient.primary as [string, string]}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
-          style={[sliderStyles.fill, {width: `${percentage}%`}]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[sliderStyles.fill, { width: `${percentage}%` }]}
+          pointerEvents="none"
         />
       </View>
-      <View style={[sliderStyles.thumb, {left: thumbPosition - 14}]}>
+      <View style={[sliderStyles.thumb, { left: thumbPosition - 14 }]} pointerEvents="none">
         <LinearGradient
           colors={colors.gradient.primary as [string, string]}
           style={sliderStyles.thumbInner}
+          pointerEvents="none"
         />
       </View>
     </View>
@@ -135,8 +137,8 @@ const POPULAR_CITIES = [
 ];
 
 export const SearchScreen: React.FC = () => {
-  const {navigate} = useNavigation();
-  const [ageRange, setAgeRange] = useState({min: 18, max: 35});
+  const { navigate } = useNavigation();
+  const [ageRange, setAgeRange] = useState({ min: 18, max: 35 });
   const [distance, setDistance] = useState(50);
   const [selectedGender, setSelectedGender] = useState('women');
   const [selectedCity, setSelectedCity] = useState('');
@@ -165,7 +167,7 @@ export const SearchScreen: React.FC = () => {
   };
 
   const handleReset = () => {
-    setAgeRange({min: 18, max: 35});
+    setAgeRange({ min: 18, max: 35 });
     setDistance(50);
     setSelectedGender('women');
     setSelectedCity('');
@@ -435,8 +437,8 @@ export const SearchScreen: React.FC = () => {
           activeOpacity={0.9}>
           <LinearGradient
             colors={colors.gradient.primary as [string, string]}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 0}}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={styles.searchGradient}>
             <Text style={styles.searchIcon}>🔍</Text>
             <Text style={styles.searchButtonText}>Find Matches</Text>

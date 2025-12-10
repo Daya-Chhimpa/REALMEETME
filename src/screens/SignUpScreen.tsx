@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,11 @@ import {
   Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {Input, BackButton} from '../components';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Input, BackButton } from '../components';
+import { useNavigation } from '../navigation/NavigationContext';
 
-const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SignUpData {
   firstName: string;
@@ -43,8 +43,9 @@ const STEP_SUBTITLES = [
 ];
 
 export const SignUpScreen: React.FC = () => {
-  const {navigate, goBack} = useNavigation();
+  const { navigate, goBack } = useNavigation();
   const [step, setStep] = useState(1);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<SignUpData>({
     firstName: '',
     gender: null,
@@ -75,7 +76,7 @@ export const SignUpScreen: React.FC = () => {
   };
 
   const updateFormData = (field: string, value: any) => {
-    setFormData(prev => ({...prev, [field]: value}));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const isStepValid = () => {
@@ -104,9 +105,9 @@ export const SignUpScreen: React.FC = () => {
         <View style={styles.progressBarContainer}>
           <LinearGradient
             colors={colors.gradient.primary as [string, string]}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 0}}
-            style={[styles.progressBar, {width: `${progress}%`}]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.progressBar, { width: `${progress}%` }]}
           />
         </View>
         <View style={styles.progressSteps}>
@@ -214,7 +215,7 @@ export const SignUpScreen: React.FC = () => {
                   placeholder="DD"
                   value={formData.birthday.day}
                   onChangeText={text =>
-                    updateFormData('birthday', {...formData.birthday, day: text})
+                    updateFormData('birthday', { ...formData.birthday, day: text })
                   }
                   keyboardType="number-pad"
                   maxLength={2}
@@ -226,7 +227,7 @@ export const SignUpScreen: React.FC = () => {
                   placeholder="MM"
                   value={formData.birthday.month}
                   onChangeText={text =>
-                    updateFormData('birthday', {...formData.birthday, month: text})
+                    updateFormData('birthday', { ...formData.birthday, month: text })
                   }
                   keyboardType="number-pad"
                   maxLength={2}
@@ -238,7 +239,7 @@ export const SignUpScreen: React.FC = () => {
                   placeholder="YYYY"
                   value={formData.birthday.year}
                   onChangeText={text =>
-                    updateFormData('birthday', {...formData.birthday, year: text})
+                    updateFormData('birthday', { ...formData.birthday, year: text })
                   }
                   keyboardType="number-pad"
                   maxLength={4}
@@ -258,7 +259,9 @@ export const SignUpScreen: React.FC = () => {
               placeholder="Create a strong password"
               value={formData.password}
               onChangeText={text => updateFormData('password', text)}
-              secureTextEntry
+              secureTextEntry={!showPassword}
+              rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+              onRightIconPress={() => setShowPassword(!showPassword)}
             />
             <View style={styles.passwordHints}>
               <View style={styles.passwordHint}>
@@ -370,8 +373,8 @@ export const SignUpScreen: React.FC = () => {
                   ? (colors.gradient.primary as [string, string])
                   : [colors.background.tertiary, colors.background.tertiary]
               }
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.nextButtonGradient}>
               <Text
                 style={[
