@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useState, ReactNode} from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Screen =
   | 'welcome'
@@ -9,6 +9,7 @@ export type Screen =
   | 'birthday'
   | 'relationship'
   | 'lookingfor'
+  | 'interests'
   | 'photos'
   | 'password'
   | 'matches'
@@ -35,7 +36,7 @@ const NavigationContext = createContext<NavigationContextType | undefined>(
   undefined,
 );
 
-export const NavigationProvider: React.FC<{children: ReactNode}> = ({
+export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
@@ -57,7 +58,7 @@ export const NavigationProvider: React.FC<{children: ReactNode}> = ({
   };
 
   return (
-    <NavigationContext.Provider value={{currentScreen, navigate, goBack}}>
+    <NavigationContext.Provider value={{ currentScreen, navigate, goBack }}>
       {children}
     </NavigationContext.Provider>
   );

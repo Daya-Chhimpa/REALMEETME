@@ -15,16 +15,57 @@ import { colors, shadows } from '../theme/colors';
 import { Input } from '../components/Input';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { registerUser } from '../redux/slices/authSlice';
+import { registerSchema } from '../utils/validation';
 
 export const PasswordScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { registrationDraft, isLoading, error, token } = useAppSelector(state => state.auth);
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (password === confirmPassword) {
-      console.log('Password set successfully');
-      navigate('matches');
+      if (!registrationDraft.mobile) {
+        console.error('Missing mobile number in draft');
+        // Handle error, maybe navigate back to start
+        return;
+      }
+
+      // Collect Data
+      const formattedGender = registrationDraft.gender
+        ? registrationDraft.gender.charAt(0).toUpperCase() + registrationDraft.gender.slice(1)
+        : 'Male';
+
+      const finalData = {
+        mobile: registrationDraft.mobile,
+        name: registrationDraft.name || 'User',
+        password: password,
+        gender: formattedGender,
+        dob: registrationDraft.dob || '2000-01-01',
+        images: ["http://htt.com"],
+      };
+
+      try {
+        await registerSchema.validate(finalData);
+        // Dispatch Register
+        const resultAction = await dispatch(registerUser(finalData));
+        if (registerUser.fulfilled.match(resultAction)) {
+          // Success
+          // clearRegistrationDraft() is handled in authSlice extraReducers
+          navigate('matches'); // or login? User usually gets auto-logged in or goes to login.
+          // Screenshot said "Register... last m register ki call... login kr skta h".
+          // If API returns token, we might be logged in. 
+          // If the user wants "register ki call... then user login kr skta h", maybe we navigate to Login?
+          // "async storage khali krde ok then user login kr skta h" -> implies flow breaks to Login.
+          navigate('login');
+        }
+      } catch (err: any) {
+        console.log('Registration Error: ', err);
+      }
     } else {
       console.log('Passwords do not match');
     }
@@ -82,7 +123,7 @@ export const PasswordScreen: React.FC = () => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextButtonGradient}>
-            <Text style={styles.nextButtonText}>COMPLETE</Text>
+            <Text style={styles.nextButtonText}>{isLoading ? 'REGISTERING...' : 'COMPLETE'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>

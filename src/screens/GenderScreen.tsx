@@ -11,14 +11,21 @@ import { colors, shadows } from '../theme/colors';
 import { GenderSelector } from '../components/GenderSelector';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 export const GenderScreen: React.FC = () => {
   const { navigate } = useNavigation();
-  const [selected, setSelected] = useState<'male' | 'female' | null>(null);
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
+  const [selected, setSelected] = useState<'male' | 'female' | null>((registrationDraft.gender as any) || null);
 
   const handleNext = () => {
-    console.log('Gender:', selected);
-    navigate('birthday');
+    if (selected) {
+      dispatch(saveDraft({ gender: selected }));
+      navigate('birthday');
+    }
   };
 
   return (

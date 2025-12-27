@@ -15,6 +15,8 @@ import { colors, shadows, spacing } from '../theme/colors';
 import { OptionsList, BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 const RELATIONSHIP_OPTIONS = [
   { id: 'single', label: 'Single' },
@@ -31,11 +33,16 @@ const RELATIONSHIP_OPTIONS = [
 
 export const RelationshipStatusScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
-  const [selected, setSelected] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
+  const [selected, setSelected] = useState<string | null>((registrationDraft as any).relationshipStatus || null);
 
   const handleNext = () => {
-    console.log('Relationship Status:', selected);
-    navigate('lookingfor');
+    if (selected) {
+      dispatch(saveDraft({ relationshipStatus: selected } as any));
+      navigate('lookingfor');
+    }
   };
 
   return (

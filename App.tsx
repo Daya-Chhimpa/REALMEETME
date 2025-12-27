@@ -6,36 +6,39 @@
  */
 
 import React from 'react';
-import {WelcomeScreen} from './src/screens/WelcomeScreen';
-import {MobileNumberScreen} from './src/screens/MobileNumberScreen';
-import {OTPVerificationScreen} from './src/screens/OTPVerificationScreen';
-import {NameScreen} from './src/screens/NameScreen';
-import {GenderScreen} from './src/screens/GenderScreen';
-import {BirthdayScreen} from './src/screens/BirthdayScreen';
-import {RelationshipStatusScreen} from './src/screens/RelationshipStatusScreen';
-import {LookingForScreen} from './src/screens/LookingForScreen';
-import {PhotoUploadScreen} from './src/screens/PhotoUploadScreen';
-import {PasswordScreen} from './src/screens/PasswordScreen';
-import {MatchesScreen} from './src/screens/MatchesScreen';
-import {SignUpScreen} from './src/screens/SignUpScreen';
-import {LoginScreen} from './src/screens/LoginScreen';
-import {VisitorsScreen} from './src/screens/VisitorsScreen';
-import {LikesYouScreen} from './src/screens/LikesYouScreen';
-import {NewAndOnlineScreen} from './src/screens/NewAndOnlineScreen';
-import {SearchScreen} from './src/screens/SearchScreen';
-import {ProfileDetailScreen} from './src/screens/ProfileDetailScreen';
-import {MessagesScreen} from './src/screens/MessagesScreen';
-import {EditProfileScreen} from './src/screens/EditProfileScreen';
-import {ChatScreen} from './src/screens/ChatScreen';
-import {PremiumScreen} from './src/screens/PremiumScreen';
-import {HelpSupportScreen} from './src/screens/HelpSupportScreen';
+import { Provider } from 'react-redux';
+import { store } from './src/redux/store';
+import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { MobileNumberScreen } from './src/screens/MobileNumberScreen';
+import { OTPVerificationScreen } from './src/screens/OTPVerificationScreen';
+import { NameScreen } from './src/screens/NameScreen';
+import { GenderScreen } from './src/screens/GenderScreen';
+import { BirthdayScreen } from './src/screens/BirthdayScreen';
+import { RelationshipStatusScreen } from './src/screens/RelationshipStatusScreen';
+import { LookingForScreen } from './src/screens/LookingForScreen';
+import { PhotoUploadScreen } from './src/screens/PhotoUploadScreen';
+import { InterestsScreen } from './src/screens/InterestsScreen';
+import { PasswordScreen } from './src/screens/PasswordScreen';
+import { MatchesScreen } from './src/screens/MatchesScreen';
+import { SignUpScreen } from './src/screens/SignUpScreen';
+import { LoginScreen } from './src/screens/LoginScreen';
+import { VisitorsScreen } from './src/screens/VisitorsScreen';
+import { LikesYouScreen } from './src/screens/LikesYouScreen';
+import { NewAndOnlineScreen } from './src/screens/NewAndOnlineScreen';
+import { SearchScreen } from './src/screens/SearchScreen';
+import { ProfileDetailScreen } from './src/screens/ProfileDetailScreen';
+import { MessagesScreen } from './src/screens/MessagesScreen';
+import { EditProfileScreen } from './src/screens/EditProfileScreen';
+import { ChatScreen } from './src/screens/ChatScreen';
+import { PremiumScreen } from './src/screens/PremiumScreen';
+import { HelpSupportScreen } from './src/screens/HelpSupportScreen';
 import {
   NavigationProvider,
   useNavigation,
 } from './src/navigation/NavigationContext';
 
 function AppNavigator(): React.JSX.Element {
-  const {currentScreen} = useNavigation();
+  const { currentScreen } = useNavigation();
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -55,6 +58,8 @@ function AppNavigator(): React.JSX.Element {
         return <RelationshipStatusScreen />;
       case 'lookingfor':
         return <LookingForScreen />;
+      case 'interests':
+        return <InterestsScreen />;
       case 'photos':
         return <PhotoUploadScreen />;
       case 'password':
@@ -95,9 +100,11 @@ function AppNavigator(): React.JSX.Element {
 
 function App(): React.JSX.Element {
   return (
-    <NavigationProvider>
-      <AppNavigator />
-    </NavigationProvider>
+    <Provider store={store}>
+      <NavigationProvider>
+        <AppNavigator />
+      </NavigationProvider>
+    </Provider>
   );
 }
 

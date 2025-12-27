@@ -12,20 +12,31 @@ import { colors, shadows } from '../theme/colors';
 import { Input } from '../components/Input';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 export const BirthdayScreen: React.FC = () => {
   const { navigate } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
+
+  // Initialize from draft if available
+  const initialDob = registrationDraft.dob ? registrationDraft.dob.split('-') : ['', '', ''];
   const [birthday, setBirthday] = useState({
-    day: '',
-    month: '',
-    year: '',
+    day: initialDob[2] || '',
+    month: initialDob[1] || '',
+    year: initialDob[0] || '',
   });
 
   const handleNext = () => {
-    console.log('Birthday:', birthday);
-    navigate('relationship');
+    if (isValid) {
+      const formattedDob = `${birthday.year}-${birthday.month}-${birthday.day}`;
+      dispatch(saveDraft({ dob: formattedDob }));
+      navigate('relationship');
+    }
   };
 
   const isValid = birthday.day && birthday.month && birthday.year;

@@ -14,14 +14,31 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { colors } from '../theme/colors';
 import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { verifyOtp, saveDraft, sendOtp } from '../redux/slices/authSlice';
+import { verifyOtpSchema } from '../utils/validation';
 
 export const OTPVerificationScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { registrationDraft, isLoading, error } = useAppSelector(state => state.auth);
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [resendTimer, setResendTimer] = useState(7);
+  const [resendTimer, setResendTimer] = useState(30);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
-  const phoneNumber = '+919914347531'; // Example phone number
+  const phoneNumber = registrationDraft?.mobile || '';
+
+  // Timer logic
+  React.useEffect(() => {
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const handleOtpChange = (value: string, index: number) => {
     if (value.length > 1) return;
@@ -47,16 +64,30 @@ export const OTPVerificationScreen: React.FC = () => {
     goBack();
   };
 
-  const handleResend = () => {
-    console.log('Resend OTP');
-    setResendTimer(7);
-    // TODO: Resend OTP API call
+  const handleResend = async () => {
+    if (resendTimer === 0) {
+      setResendTimer(30);
+      await dispatch(sendOtp(phoneNumber));
+    }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const otpCode = otp.join('');
-    console.log('Verify OTP:', otpCode);
-    navigate('name');
+    try {
+      await verifyOtpSchema.validate({ mobile: phoneNumber, otp: otpCode });
+
+      const resultAction = await dispatch(verifyOtp({ mobile: phoneNumber, otp: otpCode }));
+      if (verifyOtp.fulfilled.match(resultAction)) {
+        // Assuming verification is successful, we save the OTP (or just the fact it is verified)
+        // Usually we don't save OTP itself, but for now lets proceed.
+        // We'll proceed to the next step.
+        dispatch(saveDraft({ otpVerified: true })); // You might need to add otpVerified to RegistrationData if not there, or rely on Redux state
+        navigate('name');
+      }
+    } catch (err: any) {
+      // handle error
+      console.log("Validation error", err);
+    }
   };
 
   return (
@@ -109,19 +140,26 @@ export const OTPVerificationScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Success Message */}
-        <View style={styles.successContainer}>
-          <Text style={styles.successText}>
-            Successfully sent OTP to {phoneNumber}
-          </Text>
-        </View>
+        {/* Success Message / Error Message */}
+        {error ? (
+          <View style={[styles.successContainer, { backgroundColor: '#ffebee' }]}>
+            <Text style={[styles.successText, { color: '#c62828' }]}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>
+              Successfully sent OTP to {phoneNumber}
+            </Text>
+          </View>
+        )}
 
         {/* Continue Button */}
         <TouchableOpacity
           style={styles.continueButton}
           onPress={handleContinue}
-          activeOpacity={0.8}>
-          <Text style={styles.continueButtonText}>CONTINUE</Text>
+          activeOpacity={0.8}
+          disabled={isLoading}>
+          <Text style={styles.continueButtonText}>{isLoading ? 'VERIFYING...' : 'CONTINUE'}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

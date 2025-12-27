@@ -15,6 +15,8 @@ import { colors, shadows, spacing } from '../theme/colors';
 import { OptionsList, BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 const LOOKING_FOR_OPTIONS = [
   { id: 'new_friends', label: 'New friends' },
@@ -26,11 +28,16 @@ const LOOKING_FOR_OPTIONS = [
 
 export const LookingForScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
-  const [selected, setSelected] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
+  const [selected, setSelected] = useState<string | null>((registrationDraft as any).lookingFor || null);
 
   const handleNext = () => {
-    console.log('Looking For:', selected);
-    navigate('photos');
+    if (selected) {
+      dispatch(saveDraft({ lookingFor: selected } as any));
+      navigate('interests');
+    }
   };
 
   return (

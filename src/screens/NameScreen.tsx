@@ -11,14 +11,21 @@ import { colors, shadows } from '../theme/colors';
 import { Input } from '../components/Input';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 export const NameScreen: React.FC = () => {
   const { navigate } = useNavigation();
-  const [name, setName] = useState('');
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
+  const [name, setName] = useState(registrationDraft.name || '');
 
   const handleNext = () => {
-    console.log('Name:', name);
-    navigate('gender');
+    if (name.trim()) {
+      dispatch(saveDraft({ name: name.trim() }));
+      navigate('gender');
+    }
   };
 
   return (

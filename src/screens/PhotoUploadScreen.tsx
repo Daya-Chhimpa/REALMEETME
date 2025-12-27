@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,14 +14,19 @@ import {
   Platform,
 } from 'react-native';
 
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
-import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
-import {colors} from '../theme/colors';
-import {useNavigation} from '../navigation/NavigationContext';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import { colors } from '../theme/colors';
+import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { saveDraft } from '../redux/slices/authSlice';
 
 export const PhotoUploadScreen: React.FC = () => {
-  const {navigate, goBack} = useNavigation();
-  const [photos, setPhotos] = useState<string[]>([]);
+  const { navigate, goBack } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { registrationDraft } = useAppSelector(state => state.auth);
+
+  const [photos, setPhotos] = useState<string[]>(registrationDraft.images || []);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number>(0);
 
@@ -62,12 +67,11 @@ export const PhotoUploadScreen: React.FC = () => {
   };
 
   const handleSkip = () => {
-    console.log('Skip photo upload');
     navigate('password');
   };
 
   const handleSubmit = () => {
-    console.log('Submit photos:', photos);
+    dispatch(saveDraft({ images: photos }));
     navigate('password');
   };
 
@@ -83,7 +87,7 @@ export const PhotoUploadScreen: React.FC = () => {
         }}
         activeOpacity={0.7}>
         {hasPhoto ? (
-          <Image source={{uri: hasPhoto}} style={styles.photoImage} />
+          <Image source={{ uri: hasPhoto }} style={styles.photoImage} />
         ) : (
           <Text style={styles.photoSlotIcon}>+</Text>
         )}

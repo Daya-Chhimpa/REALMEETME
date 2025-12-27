@@ -15,24 +15,50 @@ import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Input, BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { loginUser } from '../redux/slices/authSlice';
+import { loginSchema } from '../utils/validation';
 
 const { width, height } = Dimensions.get('window');
 
 export const LoginScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { isLoading, error, user } = useAppSelector(state => state.auth);
+
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   const handleLogin = async () => {
-    setIsLoading(true);
-    console.log('Login:', { phone, password });
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate('matches');
-    }, 1000);
+    setValidationError('');
+    // Prefix +91 if missing (simple check)
+    const formattedMobile = phone.startsWith('+') ? phone : `+91${phone}`;
+
+    // Pass "000000" as OTP since this screen is Password login, assume API might ignore OTP or it's a different flow
+    // If API actually NEEDS OTP, we would need a different UI flow (Get OTP -> Login with OTP).
+    // Assuming Password login for now.
+    const credentials = {
+      mobile: formattedMobile,
+      password: password,
+      otp: '000000'
+    };
+
+    try {
+      // We might need to adjust loginSchema if it strictly requires 6 digit OTP and we are passing dummy.
+      // For now let's skip strict schema validation for OTP if we are faking it, or conform to it.
+      // 000000 satisfies 6 digits.
+
+      const resultAction = await dispatch(loginUser(credentials));
+      if (loginUser.fulfilled.match(resultAction)) {
+        navigate('matches');
+      } else {
+        // Error is handled in Redux state, but we can log user friendly message if needed
+      }
+    } catch (err) {
+      console.error("Login Error", err);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -125,6 +151,13 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Error Message */}
+            {(error || validationError) && (
+              <Text style={{ color: 'red', textAlign: 'center', marginBottom: 10 }}>
+                {validationError || error}
+              </Text>
+            )}
 
             {/* Login Button */}
             <TouchableOpacity

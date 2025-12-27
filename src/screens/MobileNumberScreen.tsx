@@ -13,16 +13,71 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
-import { Input, BackButton } from '../components';
+import { Input, BackButton, Toast } from '../components';
+import { ToastType } from '../components/Toast';
 import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { sendOtp, saveDraft, loadRegistrationDraft } from '../redux/slices/authSlice';
+import { sendOtpSchema } from '../utils/validation';
 
 export const MobileNumberScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
-  const [phone, setPhone] = useState('');
+  const dispatch = useAppDispatch();
+  const { registrationDraft, isLoading, error } = useAppSelector(state => state.auth);
 
-  const handleNext = () => {
-    console.log('Mobile Number:', phone);
-    navigate('otp');
+  const [phone, setPhone] = useState('');
+  const [validationError, setValidationError] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
+
+  const showToast = (msg: string, type: ToastType) => {
+    setToastMessage(msg);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
+  // Load draft on mount
+  React.useEffect(() => {
+    dispatch(loadRegistrationDraft());
+  }, [dispatch]);
+
+  // Set phone from draft if available
+  React.useEffect(() => {
+    if (registrationDraft?.mobile) {
+      setPhone(registrationDraft.mobile);
+    }
+  }, [registrationDraft]);
+
+  const handleNext = async () => {
+    setValidationError('');
+    try {
+      await sendOtpSchema.validate({ mobile: phone });
+
+      const mobileWithCode = `+91${phone}`;
+      const resultAction = await dispatch(sendOtp(mobileWithCode));
+
+      if (sendOtp.fulfilled.match(resultAction)) {
+        showToast('OTP code sent successfully!', 'success');
+        dispatch(saveDraft({ mobile: mobileWithCode }));
+        // Delay navigation slightly so user sees the toast ? 
+        // Or just navigate. User wanted Toast on success.
+        // If we navigate immediately, the new screen covers this one. 
+        // But the previous screen is still there. 
+        // Let's assume user accepts immediate nav or valid behavior.
+        setTimeout(() => navigate('otp'), 500);
+      } else if (sendOtp.rejected.match(resultAction)) {
+        const errorMsg = resultAction.payload as string || 'Failed to send OTP';
+        showToast(errorMsg, 'error');
+      }
+    } catch (err: any) {
+      if (err.name === 'ValidationError') {
+        setValidationError(err.message);
+        showToast(err.message, 'error');
+      } else {
+        showToast('An unexpected error occurred', 'error');
+      }
+    }
   };
 
   return (
@@ -58,6 +113,10 @@ export const MobileNumberScreen: React.FC = () => {
             </View>
           </View>
 
+
+          {/* {validationError ? <Text style={{ color: 'red', marginTop: 5 }}>{validationError}</Text> : null}
+          {error && !validationError ? <Text style={{ color: 'red', marginTop: 5 }}>{error}</Text> : null} */}
+
           <Text style={styles.changeLink}>Not in India? Change</Text>
         </View>
 
@@ -75,11 +134,17 @@ export const MobileNumberScreen: React.FC = () => {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextButtonGradient}>
-            <Text style={styles.nextButtonText}>NEXT</Text>
+            <Text style={styles.nextButtonText}>{isLoading ? 'SENDING...' : 'NEXT'}</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </View >
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onHide={() => setToastVisible(false)}
+      />
+    </SafeAreaView >
   );
 };
 
