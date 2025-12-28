@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     StyleSheet,
@@ -9,6 +9,7 @@ import {
     Dimensions,
     Platform,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 
 import { colors, shadows, spacing } from '../theme/colors';
@@ -17,51 +18,58 @@ import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
+import api from '../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const INTERESTS = [
-    'Photography',
-    'Shopping',
-    'Karaoke',
-    'Yoga',
-    'Cooking',
-    'Tennis',
-    'Run',
-    'Swimming',
-    'Art',
-    'Traveling',
-    'Extreme',
-    'Music',
-    'Drink',
-    'Video games',
-    'Gaming',
-    'Hiking',
-    'Foodie',
-    'Fashion',
-    'Books',
-    'Movies'
-];
+interface Interest {
+    _id: string;
+    name: string;
+}
 
 export const InterestsScreen: React.FC = () => {
     const { navigate, goBack } = useNavigation();
     const dispatch = useAppDispatch();
     const { registrationDraft } = useAppSelector(state => state.auth);
 
+    const [interests, setInterests] = useState<Interest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
     // Initialize with previously selected interests or empty array
+    // Note: This expects IDs if available, or might contain names from legacy code.
+    // Ideally we'd validte against available interests but we fetch them async.
     const [selectedInterests, setSelectedInterests] = useState<string[]>(
         registrationDraft?.interests || []
     );
 
-    const toggleInterest = (interest: string) => {
-        if (selectedInterests.includes(interest)) {
-            setSelectedInterests(selectedInterests.filter(i => i !== interest));
+    useEffect(() => {
+        const fetchInterests = async () => {
+            try {
+                const response = await api.get('/interests');
+                console.log('Interests response:', response.data);
+                if (response.data?.status && Array.isArray(response.data.data)) {
+                    setInterests(response.data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch interests', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchInterests();
+    }, []);
+
+    const toggleInterest = (interestId: string) => {
+        if (selectedInterests.includes(interestId)) {
+            setSelectedInterests(selectedInterests.filter(i => i !== interestId));
         } else {
-            setSelectedInterests([...selectedInterests, interest]);
+            setSelectedInterests([...selectedInterests, interestId]);
         }
     };
 
     const handleNext = () => {
+        // Save the array of IDs
         dispatch(saveDraft({ interests: selectedInterests }));
         navigate('photos');
     };
@@ -80,44 +88,54 @@ export const InterestsScreen: React.FC = () => {
                     </Text>
                 </View>
 
-                <ScrollView
-                    style={styles.scrollView}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.interestsContainer}>
-                        {INTERESTS.map((interest) => {
-                            const isSelected = selectedInterests.includes(interest);
-                            return (
-                                <TouchableOpacity
-                                    key={interest}
-                                    style={[
-                                        styles.chip,
-                                        isSelected && styles.chipSelected
-                                    ]}
-                                    onPress={() => toggleInterest(interest)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text style={[
-                                        styles.chipText,
-                                        isSelected && styles.chipTextSelected
-                                    ]}>
-                                        {interest}
-                                    </Text>
-                                    {isSelected && (
-                                        <View style={styles.checkIcon}>
-                                            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>✓</Text>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                            );
-                        })}
+                {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.brand.primary} />
                     </View>
-                </ScrollView>
+                ) : (
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={styles.interestsContainer}>
+                            {interests.length > 0 ? (
+                                interests.map((interest) => {
+                                    const isSelected = selectedInterests.includes(interest._id);
+                                    return (
+                                        <TouchableOpacity
+                                            key={interest._id}
+                                            style={[
+                                                styles.chip,
+                                                isSelected && styles.chipSelected
+                                            ]}
+                                            onPress={() => toggleInterest(interest._id)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={[
+                                                styles.chipText,
+                                                isSelected && styles.chipTextSelected
+                                            ]}>
+                                                {interest.name}
+                                            </Text>
+                                            {isSelected && (
+                                                <View style={styles.checkIcon}>
+                                                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>✓</Text>
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })
+                            ) : (
+                                <Text style={styles.noDataText}>No interests found.</Text>
+                            )}
+                        </View>
+                    </ScrollView>
+                )}
 
                 <View style={styles.footer}>
                     <TouchableOpacity
-                        style={[styles.nextButton]} // Always enabled, even if none selected? User said "multiple select kr skta h" implies optional or at least 1? Usually standard is optional or 1+. I'll allow 0 for now unless requested.
+                        style={[styles.nextButton]}
                         onPress={handleNext}
                         activeOpacity={0.8}
                     >
@@ -125,7 +143,7 @@ export const InterestsScreen: React.FC = () => {
                             colors={
                                 selectedInterests.length > 0
                                     ? (colors.gradient.primary as [string, string])
-                                    : [colors.ui.borderDark, colors.ui.borderDark] // Disabled look if 0? Or just allow next? 
+                                    : [colors.ui.borderDark, colors.ui.borderDark]
                             }
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
@@ -243,4 +261,15 @@ const styles = StyleSheet.create({
         color: colors.text.primary,
         letterSpacing: 1,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    noDataText: {
+        color: colors.text.secondary,
+        fontSize: 16,
+        textAlign: 'center',
+        marginTop: 20,
+    }
 });

@@ -18,6 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { registerUser } from '../redux/slices/authSlice';
 import { registerSchema } from '../utils/validation';
+import { Toast, ToastType } from '../components/Toast';
 
 export const PasswordScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
@@ -26,12 +27,20 @@ export const PasswordScreen: React.FC = () => {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: ToastType }>({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   const handleNext = async () => {
     if (password === confirmPassword) {
       if (!registrationDraft.mobile) {
-        console.error('Missing mobile number in draft');
-        // Handle error, maybe navigate back to start
+        setToast({ visible: true, message: 'Missing mobile number', type: 'error' });
         return;
       }
 
@@ -46,7 +55,12 @@ export const PasswordScreen: React.FC = () => {
         password: password,
         gender: formattedGender,
         dob: registrationDraft.dob || '2000-01-01',
-        images: ["http://htt.com"],
+        images: [{
+          url: "http://jj.com", // Using dummy URL as per previous placeholder, but structured as object
+          type: "image",
+          filename: "test"
+        }],
+        interests: registrationDraft.interests,
       };
 
       try {
@@ -54,20 +68,26 @@ export const PasswordScreen: React.FC = () => {
         // Dispatch Register
         const resultAction = await dispatch(registerUser(finalData));
         if (registerUser.fulfilled.match(resultAction)) {
-          // Success
-          // clearRegistrationDraft() is handled in authSlice extraReducers
-          navigate('matches'); // or login? User usually gets auto-logged in or goes to login.
-          // Screenshot said "Register... last m register ki call... login kr skta h".
-          // If API returns token, we might be logged in. 
-          // If the user wants "register ki call... then user login kr skta h", maybe we navigate to Login?
-          // "async storage khali krde ok then user login kr skta h" -> implies flow breaks to Login.
-          navigate('login');
+          setToast({ visible: true, message: 'Registration successful!', type: 'success' });
+          // Delay navigation slightly to show toast
+          setTimeout(() => {
+            navigate('login');
+          }, 1500);
+        } else {
+          if (registerUser.rejected.match(resultAction)) {
+            setToast({
+              visible: true,
+              message: (resultAction.payload as string) || 'Registration failed',
+              type: 'error'
+            });
+          }
         }
       } catch (err: any) {
         console.log('Registration Error: ', err);
+        setToast({ visible: true, message: err.message || 'Validation error', type: 'error' });
       }
     } else {
-      console.log('Passwords do not match');
+      setToast({ visible: true, message: 'Passwords do not match', type: 'error' });
     }
   };
 
@@ -77,6 +97,13 @@ export const PasswordScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <View style={styles.gradientBackground} />
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
 
       <View style={styles.content}>
         <View style={styles.header}>

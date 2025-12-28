@@ -1,6 +1,16 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../services/api';
-import { getRegistrationDraft, saveRegistrationDraft, clearRegistrationDraft } from '../../services/storage';
+import {
+    getRegistrationDraft,
+    saveRegistrationDraft,
+    clearRegistrationDraft,
+    setToken,
+    setUser,
+    getToken,
+    getUser,
+    removeToken,
+    removeUser,
+} from '../../services/storage';
 
 // Define types based on screenshots
 // Define types
@@ -10,7 +20,9 @@ export interface RegistrationData {
     password?: string;
     gender?: string;
     dob?: string;
-    images?: string[];
+    relationshipStatus?: string;
+    lookingFor?: string;
+    images?: { url: string; type: string; filename: string }[];
     interests?: string[];
     otpVerified?: boolean;
     // Add other fields as necessary
@@ -20,6 +32,7 @@ interface AuthState {
     user: any | null;
     token: string | null;
     isLoading: boolean;
+    isInitialized: boolean;
     error: string | null;
     otpSent: boolean;
     otpVerified: boolean;
@@ -30,6 +43,7 @@ const initialState: AuthState = {
     user: null,
     token: null,
     isLoading: false,
+    isInitialized: false,
     error: null,
     otpSent: false,
     otpVerified: false,
@@ -37,6 +51,19 @@ const initialState: AuthState = {
 };
 
 // Async Thunks
+
+export const initializeAuth = createAsyncThunk(
+    'auth/initialize',
+    async (_, { rejectWithValue }) => {
+        try {
+            const token = await getToken();
+            const user = await getUser();
+            return { token, user };
+        } catch (error) {
+            return rejectWithValue('Failed to initialize auth');
+        }
+    }
+);
 
 export const sendOtp = createAsyncThunk(
     'auth/sendOtp',
@@ -78,12 +105,25 @@ export const registerUser = createAsyncThunk(
             password: string;
             gender: string;
             dob: string;
-            images?: string[];
+            images?: { url: string; type: string; filename: string }[];
+            interests?: string[];
         },
         { rejectWithValue },
     ) => {
         try {
             const response = await api.post('/auth/register', userData);
+            // Save to storage
+            // API Response: { status: true, data: { token: "...", ...user } }
+            const responseData = response.data;
+            const userObj = responseData.data || responseData;
+            const token = userObj.token;
+
+            if (token) {
+                await setToken(token);
+                if (userObj) {
+                    await setUser(userObj);
+                }
+            }
             return response.data;
         } catch (error: any) {
             return rejectWithValue(
@@ -101,6 +141,18 @@ export const loginUser = createAsyncThunk(
     ) => {
         try {
             const response = await api.post('/auth/login', credentials);
+            // Save to storage
+            // API Response: { status: true, data: { token: "...", ...user } }
+            const responseData = response.data;
+            const userObj = responseData.data || responseData;
+            const token = userObj.token;
+
+            if (token) {
+                await setToken(token);
+                if (userObj) {
+                    await setUser(userObj);
+                }
+            }
             return response.data;
         } catch (error: any) {
             return rejectWithValue(
@@ -146,9 +198,9 @@ const authSlice = createSlice({
             state.otpSent = false;
             state.otpVerified = false;
             state.error = null;
-            // We might consciously decide NOT to clear the draft on logout, or WE DO.
-            // Usually logging out implies clearing sensitive user data.
             state.registrationDraft = {};
+            removeToken();
+            removeUser();
         },
         clearError: state => {
             state.error = null;
@@ -159,6 +211,22 @@ const authSlice = createSlice({
         },
     },
     extraReducers: builder => {
+        // Initialize Auth
+        builder
+            .addCase(initializeAuth.pending, state => {
+                state.isLoading = true;
+            })
+            .addCase(initializeAuth.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.isInitialized = true;
+                state.token = action.payload.token || null;
+                state.user = action.payload.user || null;
+            })
+            .addCase(initializeAuth.rejected, state => {
+                state.isLoading = false;
+                state.isInitialized = true;
+            });
+
         // Send OTP
         builder
             .addCase(sendOtp.pending, state => {
@@ -180,9 +248,12 @@ const authSlice = createSlice({
                 state.isLoading = true;
                 state.error = null;
             })
-            .addCase(verifyOtp.fulfilled, state => {
+            .addCase(verifyOtp.fulfilled, (state) => {
                 state.isLoading = false;
                 state.otpVerified = true;
+                // Update draft in state and storage
+                state.registrationDraft.otpVerified = true;
+                saveRegistrationDraft(state.registrationDraft);
             })
             .addCase(verifyOtp.rejected, (state, action) => {
                 state.isLoading = false;
@@ -197,8 +268,9 @@ const authSlice = createSlice({
             })
             .addCase(registerUser.fulfilled, (state, action) => {
                 state.isLoading = false;
-                state.user = action.payload.user;
-                state.token = action.payload.token;
+                const data = action.payload.data || action.payload;
+                state.user = data;
+                state.token = data.token;
                 state.registrationDraft = {}; // Clear draft on success
                 clearRegistrationDraft();
             })
@@ -215,8 +287,9 @@ const authSlice = createSlice({
             })
             .addCase(loginUser.fulfilled, (state, action) => {
                 state.isLoading = false;
-                state.user = action.payload.user;
-                state.token = action.payload.token;
+                const data = action.payload.data || action.payload;
+                state.user = data;
+                state.token = data.token;
             })
             .addCase(loginUser.rejected, (state, action) => {
                 state.isLoading = false;

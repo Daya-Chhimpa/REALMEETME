@@ -5,9 +5,12 @@
  * @format
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { Provider } from 'react-redux';
 import { store } from './src/redux/store';
+import { useAppDispatch, useAppSelector } from './src/redux/hooks';
+import { initializeAuth, loadRegistrationDraft } from './src/redux/slices/authSlice';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { MobileNumberScreen } from './src/screens/MobileNumberScreen';
 import { OTPVerificationScreen } from './src/screens/OTPVerificationScreen';
@@ -35,10 +38,75 @@ import { HelpSupportScreen } from './src/screens/HelpSupportScreen';
 import {
   NavigationProvider,
   useNavigation,
+  Screen
 } from './src/navigation/NavigationContext';
+import { colors } from './src/theme/colors';
 
 function AppNavigator(): React.JSX.Element {
-  const { currentScreen } = useNavigation();
+  const { currentScreen, reset } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { isInitialized, token, registrationDraft } = useAppSelector(state => state.auth);
+
+  useEffect(() => {
+    dispatch(initializeAuth());
+    dispatch(loadRegistrationDraft());
+  }, [dispatch]);
+
+  // Determine the correct startup screen based on state
+  useEffect(() => {
+    if (isInitialized) {
+      if (token) {
+        reset('matches');
+      } else {
+        // If not logged in, check draft to resume registration
+        const nextScreen = getRegistrationNextStep(registrationDraft);
+        // Only redirect if we are currently at 'welcome' (default) to avoid overriding user navigation during use
+        // But on cold start, currentScreen is 'welcome'.
+        // If user explicitly logs out, token is null, draft empty -> welcome.
+
+        // We only want to auto-navigate if the computed next screen is NOT welcome, 
+        // meaning they have some progress.
+        if (nextScreen !== 'welcome') {
+          reset(nextScreen);
+        }
+      }
+    }
+  }, [isInitialized, token, registrationDraft]); // removed registrationDraft from deps to avoid loop? No, draft changes only on save.
+
+  const getRegistrationNextStep = (draft: any): Screen => {
+    // If no mobile number, start at welcome
+    if (!draft.mobile) return 'welcome';
+
+    // If mobile but not verified -> OTP
+    // We added otpVerified to draft in verifyOtp action
+    if (!draft.otpVerified) return 'otp';
+
+    // Flow: Name -> Gender -> Birthday -> Relationship -> LookingFor -> Interests -> Photos -> Password
+    if (!draft.name) return 'name';
+    if (!draft.gender) return 'gender';
+    if (!draft.dob) return 'birthday';
+    if (!draft.relationshipStatus) return 'relationship';
+    if (!draft.lookingFor) return 'lookingfor';
+    // interests is optional-ish but screen exists. If it's missing, go there.
+    // If user skipped it, we should probably save empty array to mark it done? 
+    // Current implementation of InterestsScreen saves array (empty if skipped).
+    // So if interests undefined -> Interests.
+    if (!draft.interests) return 'interests';
+
+    // Photos - array exists?
+    if (!draft.images || draft.images.length === 0) return 'photos';
+
+    // Password - last step
+    return 'password';
+  };
+
+  if (!isInitialized) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background.primary, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.brand.primary} />
+      </View>
+    );
+  }
 
   const renderScreen = () => {
     switch (currentScreen) {

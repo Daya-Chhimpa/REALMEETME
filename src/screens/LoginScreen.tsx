@@ -21,6 +21,8 @@ import { loginSchema } from '../utils/validation';
 
 const { width, height } = Dimensions.get('window');
 
+import { Toast, ToastType } from '../components/Toast';
+
 export const LoginScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
@@ -30,6 +32,15 @@ export const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: ToastType }>({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   const handleLogin = async () => {
     setValidationError('');
@@ -52,12 +63,23 @@ export const LoginScreen: React.FC = () => {
 
       const resultAction = await dispatch(loginUser(credentials));
       if (loginUser.fulfilled.match(resultAction)) {
-        navigate('matches');
+        setToast({ visible: true, message: 'Login successful!', type: 'success' });
+        setTimeout(() => {
+          navigate('matches');
+        }, 1000);
       } else {
         // Error is handled in Redux state, but we can log user friendly message if needed
+        if (loginUser.rejected.match(resultAction)) {
+          setToast({
+            visible: true,
+            message: (resultAction.payload as string) || 'Login failed',
+            type: 'error'
+          });
+        }
       }
     } catch (err) {
       console.error("Login Error", err);
+      setToast({ visible: true, message: 'An unexpected error occurred', type: 'error' });
     }
   };
 
@@ -76,6 +98,13 @@ export const LoginScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
+
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
 
       <LinearGradient
         colors={colors.gradient.dark as [string, string, string]}

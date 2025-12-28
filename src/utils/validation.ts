@@ -42,5 +42,12 @@ export const registerSchema = Yup.object().shape({
         .required('Password is required'),
     gender: Yup.string().required('Gender is required'),
     dob: Yup.string().required('Date of Birth is required'),
-    images: Yup.array().of(Yup.string().url('Invalid image URL')),
+    images: Yup.array().of(
+        Yup.object().shape({
+            url: Yup.string().url('Invalid image URL').required(),
+            type: Yup.string().default('image'),
+            filename: Yup.string().default('image'),
+        })
+    ),
+    interests: Yup.array().of(Yup.string()),
 });

@@ -30,6 +30,7 @@ interface NavigationContextType {
   currentScreen: Screen;
   navigate: (screen: Screen) => void;
   goBack: () => void;
+  reset: (screen: Screen) => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(
@@ -47,6 +48,11 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
     setHistory(prev => [...prev, screen]);
   };
 
+  const reset = (screen: Screen) => {
+    setCurrentScreen(screen);
+    setHistory([screen]);
+  };
+
   const goBack = () => {
     if (history.length > 1) {
       const newHistory = [...history];
@@ -58,7 +64,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   return (
-    <NavigationContext.Provider value={{ currentScreen, navigate, goBack }}>
+    <NavigationContext.Provider value={{ currentScreen, navigate, goBack, reset }}>
       {children}
     </NavigationContext.Provider>
   );
