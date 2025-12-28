@@ -35,6 +35,8 @@ import { EditProfileScreen } from './src/screens/EditProfileScreen';
 import { ChatScreen } from './src/screens/ChatScreen';
 import { PremiumScreen } from './src/screens/PremiumScreen';
 import { HelpSupportScreen } from './src/screens/HelpSupportScreen';
+import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './src/screens/ResetPasswordScreen';
 import {
   NavigationProvider,
   useNavigation,
@@ -158,6 +160,10 @@ function AppNavigator(): React.JSX.Element {
         return <PremiumScreen />;
       case 'help':
         return <HelpSupportScreen />;
+      case 'forgotrequest':
+        return <ForgotPasswordScreen />;
+      case 'forgotreset':
+        return <ResetPasswordScreen />;
       default:
         return <WelcomeScreen />;
     }

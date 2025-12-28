@@ -24,7 +24,9 @@ export type Screen =
   | 'editprofile'
   | 'chat'
   | 'premium'
-  | 'help';
+  | 'help'
+  | 'forgotrequest'
+  | 'forgotreset';
 
 interface NavigationContextType {
   currentScreen: Screen;

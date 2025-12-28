@@ -162,6 +162,37 @@ export const loginUser = createAsyncThunk(
     },
 );
 
+export const forgotPassword = createAsyncThunk(
+    'auth/forgotPassword',
+    async (mobile: string, { rejectWithValue }) => {
+        try {
+            const response = await api.post('/auth/password/forgot', { mobile });
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to send OTP',
+            );
+        }
+    },
+);
+
+export const resetPassword = createAsyncThunk(
+    'auth/resetPassword',
+    async (
+        data: { mobile: string; otp: string; password: string },
+        { rejectWithValue },
+    ) => {
+        try {
+            const response = await api.post('/auth/password/reset', data);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to reset password',
+            );
+        }
+    },
+);
+
 export const loadRegistrationDraft = createAsyncThunk(
     'auth/loadRegistrationDraft',
     async (_, { rejectWithValue }) => {

@@ -84,7 +84,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   const handleForgotPassword = () => {
-    console.log('Forgot Password');
+    navigate('forgotrequest');
   };
 
   const handleSignUp = () => {
