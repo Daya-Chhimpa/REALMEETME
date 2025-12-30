@@ -23,6 +23,8 @@ import { getProfile, updateProfile } from '../redux/slices/authSlice';
 import { Toast, ToastType } from '../components/Toast';
 import api from '../services/api';
 
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=random';
+
 // --- Constants ---
 
 const RELATIONSHIP_OPTIONS = [
@@ -47,8 +49,8 @@ const LOOKING_FOR_OPTIONS = [
 ];
 
 const GENDER_OPTIONS = [
-  { id: 'male', label: 'Male' },
-  { id: 'female', label: 'Female' },
+  { id: 'Male', label: 'Male' },
+  { id: 'Female', label: 'Female' },
 ];
 
 const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -345,6 +347,11 @@ export const EditProfileScreen: React.FC = () => {
   const [lookingFor, setLookingFor] = useState('');
   const [interestIds, setInterestIds] = useState<string[]>([]);
 
+  const [currentImages, setCurrentImages] = useState<any[]>([]);
+  const [profileImageUri, setProfileImageUri] = useState<string>('');
+  const [imageError, setImageError] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
   // Modals State
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showLookingModal, setShowLookingModal] = useState(false);
@@ -396,41 +403,44 @@ export const EditProfileScreen: React.FC = () => {
         }
       }
       setGender(user.gender || '');
-      setAddressId(user.address || '');
-      setAddressName(user.location || user.address || ''); // Assuming location holds the name
+      setAddressId(user.address || ''); // Assuming API returns ID
+      // If the API returns a populated address object, handle it, otherwise we might just have ID
+      // For display, we might need to fetch the city name or rely on user.location if available
+      setAddressName(user.location || user.addressName || ''); // improved callback
+
       setStatus(user.relationshipStatus || '');
       setLookingFor(user.lookingFor || '');
       setInterestIds(user.interests || []);
 
-      // If address is an ID, we might want to fetch city name if not available
-      // but let's assume one of our existing fields or a fresh fetch helps.
-      // For now we trust user.location or fallback to ID
+      if (user.images && user.images.length > 0) {
+        setCurrentImages(user.images);
+        const imgUrl = user.images[0].url;
+        setProfileImageUri(imgUrl);
+        setImageError(false);
+      }
     }
   }, [user]);
 
   // Helpers
-  const formatDateForDisplay = (dateString: string) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      if (dateString.includes('/') && dateString.split('/')[0].length === 2) return dateString;
-      const d = date.getDate().toString().padStart(2, '0');
-      const m = (date.getMonth() + 1).toString().padStart(2, '0');
-      const y = date.getFullYear();
-      return `${d}/${m}/${y}`;
-    } catch { return dateString; }
-  };
-
-  const parseDateForApi = (dateString: string) => {
-    const parts = dateString.split('/');
-    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    return dateString;
-  };
-
   const getLabel = (options: any[], val: string) => options.find(o => o.id === val)?.label || val;
 
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!name.trim()) newErrors.name = 'Name is required';
+    if (!gender) newErrors.gender = 'Gender is required';
+    if (!dobParts.day || !dobParts.month || !dobParts.year) newErrors.dob = 'Complete Date of Birth is required';
+    if (!addressId && !addressName) newErrors.address = 'Address is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validate()) {
+      setToast({ visible: true, message: 'Please fix validation errors', type: 'error' });
+      return;
+    }
+
     const formattedDob = `${dobParts.year}-${dobParts.month}-${dobParts.day}`;
     const profileData = {
       name,
@@ -440,12 +450,13 @@ export const EditProfileScreen: React.FC = () => {
       relationshipStatus: status,
       lookingFor,
       interests: interestIds,
-      images: user?.images || [],
+      images: currentImages, // Send updated images array
     };
 
     try {
       const resultAction = await dispatch(updateProfile(profileData));
       if (updateProfile.fulfilled.match(resultAction)) {
+        await dispatch(getProfile()); // Refresh profile data
         setToast({ visible: true, message: 'Profile updated successfully', type: 'success' });
       } else {
         setToast({ visible: true, message: 'Failed to update profile', type: 'error' });
@@ -459,7 +470,13 @@ export const EditProfileScreen: React.FC = () => {
     try {
       const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
       if (result.assets && result.assets[0]) {
-        uploadImage(result.assets[0]);
+        // Show immediately (local preview)
+        const asset = result.assets[0];
+        setProfileImageUri(asset.uri || '');
+        setImageError(false);
+
+        // Upload
+        await uploadImage(asset);
       }
     } catch (err) {
       console.log('Image Picker Error', err);
@@ -472,23 +489,45 @@ export const EditProfileScreen: React.FC = () => {
     formData.append('images', {
       uri: asset.uri,
       type: asset.type,
-      name: asset.fileName || 'image.jpg',
+      name: asset.fileName || 'profile_image.jpg',
     });
 
     try {
+      console.log('Uploading image...');
       const response = await api.post('/utility/uploadFiles', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      if (response.data?.data) {
-        // We typically append to existing images or replace avatar
-        // This logic depends on backend. Assuming we just prompt user to save.
-        // Actually for profile pic usually we want to update the array immediately or wait for save.
-        // The original logic pushed to 'uploadedImages' but didn't save to profile immediately.
-        // We will just do a Toast here.
-        setToast({ visible: true, message: 'Image uploaded. Click Save to apply.', type: 'success' });
+
+      const uploadedData = response.data?.data;
+      console.log('Upload response:', uploadedData);
+
+      if (uploadedData) {
+        // Handle both array and single object response
+        const newImage = Array.isArray(uploadedData) ? uploadedData[0] : uploadedData;
+
+        if (newImage && newImage.url) {
+          // Update currentImages state safely using functional update to avoid stale state
+          setCurrentImages(prevImages => {
+            const safePrev = Array.isArray(prevImages) ? prevImages : [];
+            // Replace index 0 with new image, keep the rest
+            if (safePrev.length > 0) {
+              return [newImage, ...safePrev.slice(1)];
+            } else {
+              return [newImage];
+            }
+          });
+          // Update profileImageUri to remote URL to ensure consistency (optional, but good for saving state)
+          // But usually we keep local URI for smoother UX until save/refresh.
+          // Let's stick to local which is already set in handlePickImage.
+        }
+
+        setToast({ visible: true, message: 'Image uploaded successfully.', type: 'success' });
+      } else {
+        throw new Error("No data received");
       }
-    } catch {
-      setToast({ visible: true, message: 'Image upload failed', type: 'error' });
+    } catch (e: any) {
+      console.error("Upload failed", e);
+      setToast({ visible: true, message: 'Image upload failed. Please try again.', type: 'error' });
     } finally {
       setUploading(false);
     }
@@ -513,26 +552,39 @@ export const EditProfileScreen: React.FC = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Avatar */}
         <View style={styles.imageSection}>
-          <Image
-            source={{ uri: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop' }}
-            style={styles.profileImage}
-          />
-          <TouchableOpacity onPress={handlePickImage} style={styles.changePhotoButton}>
-            <Text style={styles.changePhotoText}>Change Photo</Text>
+          <View>
+            <Image
+              source={{
+                uri: !imageError && profileImageUri
+                  ? profileImageUri
+                  : DEFAULT_AVATAR
+              }}
+              style={styles.profileImage}
+              onError={() => setImageError(true)}
+            />
+            {uploading && (
+              <View style={[styles.profileImage, styles.loadingOverlay]}>
+                <ActivityIndicator color={colors.brand.primary} />
+              </View>
+            )}
+          </View>
+          <TouchableOpacity onPress={handlePickImage} style={styles.changePhotoButton} disabled={uploading}>
+            <Text style={styles.changePhotoText}>{uploading ? 'Uploading...' : 'Change Photo'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.form}>
           {/* Name */}
           <View style={styles.field}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>Name <Text style={styles.required}>*</Text></Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.name ? styles.errorInput : undefined]}
               value={name}
-              onChangeText={setName}
+              onChangeText={(t) => { setName(t); if (errors.name) setErrors({ ...errors, name: '' }); }}
               placeholder="Name"
               placeholderTextColor={colors.text.tertiary}
             />
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
           </View>
 
           {/* Mobile (Disabled) */}
@@ -545,22 +597,21 @@ export const EditProfileScreen: React.FC = () => {
             />
           </View>
 
-          {/* Gender (Read Only) */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Gender</Text>
-            <TextInput
-              style={[styles.input, styles.disabledInput]}
-              value={gender}
-              editable={false}
-              placeholder="Gender"
-              placeholderTextColor={colors.text.tertiary}
-            />
-          </View>
-
+          {/* Gender */}
+          <TouchableOpacity style={styles.field} onPress={() => setShowGenderModal(true)} activeOpacity={0.8}>
+            <Text style={styles.label}>Gender <Text style={styles.required}>*</Text></Text>
+            <View style={[styles.pickerInput, errors.gender ? styles.errorInput : undefined]}>
+              <Text style={[styles.pickerText, !gender && styles.placeholderText]}>
+                {gender ? getLabel(GENDER_OPTIONS, gender) : 'Select Gender'}
+              </Text>
+              <Text style={styles.pickerIcon}>▼</Text>
+            </View>
+            {errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+          </TouchableOpacity>
 
           {/* DOB */}
           <View style={styles.field}>
-            <Text style={styles.label}>Date of Birth</Text>
+            <Text style={styles.label}>Date of Birth <Text style={styles.required}>*</Text></Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 0.8 }}>
                 <Dropdown
@@ -570,7 +621,7 @@ export const EditProfileScreen: React.FC = () => {
                   placeholder="DD"
                   onSelect={(val) => {
                     setDobParts(prev => ({ ...prev, day: val }));
-                    // Also update the main 'dob' string if needed, or build it on save
+                    if (errors.dob) setErrors({ ...errors, dob: '' });
                   }}
                 />
               </View>
@@ -580,7 +631,10 @@ export const EditProfileScreen: React.FC = () => {
                   value={dobParts.month}
                   options={MONTHS}
                   placeholder="Month"
-                  onSelect={(val) => setDobParts(prev => ({ ...prev, month: val }))}
+                  onSelect={(val) => {
+                    setDobParts(prev => ({ ...prev, month: val }));
+                    if (errors.dob) setErrors({ ...errors, dob: '' });
+                  }}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -589,21 +643,26 @@ export const EditProfileScreen: React.FC = () => {
                   value={dobParts.year}
                   options={YEARS}
                   placeholder="Year"
-                  onSelect={(val) => setDobParts(prev => ({ ...prev, year: val }))}
+                  onSelect={(val) => {
+                    setDobParts(prev => ({ ...prev, year: val }));
+                    if (errors.dob) setErrors({ ...errors, dob: '' });
+                  }}
                 />
               </View>
             </View>
+            {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
           </View>
 
           {/* Address */}
           <TouchableOpacity style={styles.field} onPress={() => setShowCityModal(true)} activeOpacity={0.8}>
-            <Text style={styles.label}>Address</Text>
-            <View style={styles.pickerInput}>
+            <Text style={styles.label}>Address <Text style={styles.required}>*</Text></Text>
+            <View style={[styles.pickerInput, errors.address ? styles.errorInput : undefined]}>
               <Text style={[styles.pickerText, !addressName && !addressId && styles.placeholderText]}>
                 {addressName || 'Select Address'}
               </Text>
               <Text style={styles.pickerIcon}>▼</Text>
             </View>
+            {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
           </TouchableOpacity>
 
           {/* Relationship Status */}
@@ -798,7 +857,26 @@ const styles = StyleSheet.create({
   },
   pickerIcon: {
     color: colors.text.tertiary,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    top: 32,
+  },
+  required: {
+    color: 'red',
     fontSize: 14,
+  },
+  errorInput: {
+    borderColor: 'red',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   changePasswordButton: {
     marginTop: 10,

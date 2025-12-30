@@ -421,8 +421,12 @@ const authSlice = createSlice({
             })
             .addCase(updateProfile.fulfilled, (state, action) => {
                 state.isLoading = false;
-                // Assuming payload contains updated user object or data wrapper
-                state.user = action.payload.data || action.payload;
+                // Only update user if the payload looks like a user object (has _id or mobile)
+                // This prevents overwriting the user state with a generic success message
+                const payloadData = action.payload.data || action.payload;
+                if (payloadData && (payloadData._id || payloadData.mobile)) {
+                    state.user = payloadData;
+                }
             })
             .addCase(updateProfile.rejected, (state, action) => {
                 state.isLoading = false;

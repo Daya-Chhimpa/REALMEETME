@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { BackHandler } from 'react-native';
 
 export type Screen =
   | 'welcome'
@@ -66,6 +67,26 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
       setHistory(newHistory);
     }
   };
+
+  // Handle hardware back button on Android
+  useEffect(() => {
+    const onBackPress = () => {
+      // If we have history to go back to (more than just the current screen)
+      if (history.length > 1) {
+        goBack();
+        return true; // Use valid React Native boolean return to stop default back
+      }
+      // If we are at the root (length === 1), let default behavior happen (exit app)
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [history]);
 
   return (
     <NavigationContext.Provider value={{ currentScreen, navigate, goBack, reset }}>
