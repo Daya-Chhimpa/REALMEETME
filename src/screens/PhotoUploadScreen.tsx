@@ -16,7 +16,8 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
-import { colors } from '../theme/colors';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, shadows, borderRadius } from '../theme/colors';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
@@ -26,7 +27,9 @@ export const PhotoUploadScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
-  const [photos, setPhotos] = useState<string[]>(registrationDraft.images || []);
+  const [photos, setPhotos] = useState<string[]>(
+    (registrationDraft.images || []).map(img => img.url)
+  );
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number>(0);
 
@@ -70,8 +73,13 @@ export const PhotoUploadScreen: React.FC = () => {
     navigate('password');
   };
 
-  const handleSubmit = () => {
-    dispatch(saveDraft({ images: photos }));
+  const handleSubmit = async () => {
+    const imageObjects = photos.map(uri => ({
+      url: uri,
+      type: 'image/jpeg',
+      filename: uri.split('/').pop() || 'image.jpg',
+    }));
+    await dispatch(saveDraft({ images: imageObjects }));
     navigate('password');
   };
 
@@ -101,13 +109,16 @@ export const PhotoUploadScreen: React.FC = () => {
       <View style={styles.gradientBackground} />
 
       <View style={styles.content}>
+
+
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={goBack} style={styles.backButton}>
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Upload your photos</Text>
-          <TouchableOpacity onPress={handleSkip}>
+          <TouchableOpacity onPress={handleSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.skipText}>SKIP</Text>
           </TouchableOpacity>
         </View>
@@ -130,10 +141,25 @@ export const PhotoUploadScreen: React.FC = () => {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.submitButton}
+          style={styles.actionButtonContainer}
           onPress={handleSubmit}
-          activeOpacity={0.8}>
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={
+              photos.length > 0
+                ? (colors.gradient.primary as [string, string])
+                : [colors.ui.borderDark, colors.ui.borderDark]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.actionButtonGradient}
+          >
+            <Text style={styles.actionButtonText}>
+              {photos.length > 0 ? 'CONTINUE' : 'SKIP'}
+            </Text>
+            {photos.length > 0 && <Text style={styles.actionButtonArrow}>→</Text>}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -403,5 +429,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#000000',
+  },
+  actionButtonContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 'auto',
+    ...shadows.primaryGlow,
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    height: Math.max(50, SCREEN_WIDTH * 0.13),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+    letterSpacing: 1,
+  },
+  actionButtonArrow: {
+    fontSize: 18,
+    color: colors.text.primary,
+    fontWeight: '700',
   },
 });

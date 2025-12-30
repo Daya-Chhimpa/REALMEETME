@@ -28,6 +28,7 @@ interface Interest {
 }
 
 export const InterestsScreen: React.FC = () => {
+
     const { navigate, goBack } = useNavigation();
     const dispatch = useAppDispatch();
     const { registrationDraft } = useAppSelector(state => state.auth);
@@ -68,9 +69,9 @@ export const InterestsScreen: React.FC = () => {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         // Save the array of IDs
-        dispatch(saveDraft({ interests: selectedInterests }));
+        await dispatch(saveDraft({ interests: selectedInterests }));
         navigate('photos');
     };
 

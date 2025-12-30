@@ -8,8 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { logoutUser } from '../redux/slices/authSlice';
 
 interface SidebarProps {
   onClose: () => void;
@@ -25,21 +27,25 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  {id: '1', screen: 'matches', label: 'Discover', icon: '🎯'},
-  {id: '2', screen: 'newonline', label: 'New & Online', icon: '✨', isOnline: true, badge: '11659'},
-  {id: '3', screen: 'search', label: 'Search', icon: '🔍'},
-  {id: '4', screen: 'likesyou', label: 'Likes You', icon: '💖', badge: 12},
-  {id: '5', screen: 'messages', label: 'Messages', icon: '💬', badge: 3},
-  {id: '6', screen: 'visitors', label: 'Visitors', icon: '👁️'},
+  { id: '1', screen: 'matches', label: 'Discover', icon: '🎯' },
+  { id: '2', screen: 'newonline', label: 'New & Online', icon: '✨', isOnline: true, badge: '11659' },
+  { id: '3', screen: 'search', label: 'Search', icon: '🔍' },
+  { id: '4', screen: 'likesyou', label: 'Likes You', icon: '💖', badge: 12 },
+  { id: '5', screen: 'messages', label: 'Messages', icon: '💬', badge: 3 },
+  { id: '6', screen: 'visitors', label: 'Visitors', icon: '👁️' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({onClose}) => {
-  const {navigate, currentScreen} = useNavigation();
+export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+  const { navigate, currentScreen } = useNavigation();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector(state => state.auth);
 
   const handleMenuItemPress = (screen: MenuItem['screen']) => {
     navigate(screen);
     onClose();
   };
+  // ...
+
 
   const handleProfilePress = () => {
     navigate('profiledetail');
@@ -62,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({onClose}) => {
   };
 
   const handleSignOut = () => {
-    navigate('welcome');
+    dispatch(logoutUser());
     onClose();
   };
 
@@ -77,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({onClose}) => {
             <View style={styles.profileImageContainer}>
               <Image
                 source={{
-                  uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
+                  uri: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
                 }}
                 style={styles.profileImage}
               />
@@ -92,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({onClose}) => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.profileName}>Daya</Text>
+        <Text style={styles.profileName}>{user?.name || 'User'}</Text>
         <View style={styles.profileStats}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>89%</Text>
@@ -114,8 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({onClose}) => {
         <TouchableOpacity style={styles.premiumBanner} activeOpacity={0.9} onPress={handlePremiumPress}>
           <LinearGradient
             colors={colors.gradient.gold as [string, string]}
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 0}}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={styles.premiumGradient}>
             <Text style={styles.premiumIcon}>👑</Text>
             <View style={styles.premiumTextContainer}>

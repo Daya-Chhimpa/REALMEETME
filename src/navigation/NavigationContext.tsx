@@ -9,6 +9,7 @@ export type Screen =
   | 'birthday'
   | 'relationship'
   | 'lookingfor'
+  | 'address'
   | 'interests'
   | 'photos'
   | 'password'
@@ -26,7 +27,8 @@ export type Screen =
   | 'premium'
   | 'help'
   | 'forgotrequest'
-  | 'forgotreset';
+  | 'forgotreset'
+  | 'changepassword';
 
 interface NavigationContextType {
   currentScreen: Screen;

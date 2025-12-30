@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,26 +10,40 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import {colors, spacing} from '../theme/colors';
-import {Sidebar, BackButton} from '../components';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, spacing } from '../theme/colors';
+import { Sidebar, BackButton } from '../components';
+import { useNavigation } from '../navigation/NavigationContext';
+import { useAppSelector } from '../redux/hooks';
+
+const getAge = (dateString: string) => {
+  const today = new Date();
+  const birthDate = new Date(dateString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 export const ProfileDetailScreen: React.FC = () => {
-  const {goBack} = useNavigation();
+  const { goBack } = useNavigation();
+  const { user } = useAppSelector(state => state.auth);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  // Sample profile data - will be passed via navigation params later
+  // Fallback or explicit other profile logic could go here
+  // For now, mapping Redux user to display profile
   const profile = {
-    name: 'Priya',
-    age: 24,
-    location: 'Delhi',
-    status: 'Single',
-    lookingFor: 'Looking for serious relationship',
-    phone: '9876XXXXXX',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
-    bio: 'Love traveling, reading books, and meeting new people. Looking for someone genuine and caring.',
-    interests: ['Travel', 'Reading', 'Music', 'Cooking'],
+    name: user?.name || 'User',
+    age: user?.age || (user?.dob ? getAge(user.dob) : ''),
+    status: user?.relationshipStatus || '',
+    lookingFor: user?.lookingFor || '',
+    phone: user?.mobile || '',
+    image: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
+    interests: user?.interests || [],
   };
+
+  const isSelf = true; // For now assuming this is accessed via "My Profile" in sidebar
 
   const handleSendMessage = () => {
     console.log('Send Message to:', profile.name);
@@ -44,7 +58,7 @@ export const ProfileDetailScreen: React.FC = () => {
       <View style={styles.header}>
         <BackButton onPress={goBack} variant="default" />
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}>
           <Text style={styles.menuIcon}>☰</Text>
@@ -52,44 +66,39 @@ export const ProfileDetailScreen: React.FC = () => {
       </View>
 
       {/* Profile Content */}
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}>
         {/* Profile Image */}
         <View style={styles.imageContainer}>
-          <Image source={{uri: profile.image}} style={styles.profileImage} />
+          <Image source={{ uri: profile.image }} style={styles.profileImage} />
         </View>
 
         {/* Profile Info */}
         <View style={styles.infoContainer}>
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{profile.name}, {profile.age}</Text>
-            <View style={styles.locationBadge}>
-              <Text style={styles.locationIcon}>📍</Text>
-              <Text style={styles.location}>{profile.location}</Text>
-            </View>
+            <Text style={styles.name}>{profile.name}{profile.age ? `, ${profile.age}` : ''}</Text>
           </View>
 
-          <Text style={styles.status}>{profile.status}</Text>
-          <Text style={styles.looking}>{profile.lookingFor}</Text>
+          {profile.status ? <Text style={styles.status}>{profile.status}</Text> : null}
+          {profile.lookingFor ? <Text style={styles.looking}>{profile.lookingFor}</Text> : null}
 
           {/* Bio */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.bio}>{profile.bio}</Text>
-          </View>
+
 
           {/* Interests */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interests</Text>
-            <View style={styles.interestsContainer}>
-              {profile.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
+          {profile.interests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Interests</Text>
+              <View style={styles.interestsContainer}>
+                {profile.interests.map((interest: string, index: number) => (
+                  <View key={index} style={styles.interestTag}>
+                    <Text style={styles.interestText}>{interest}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Verification */}
           <View style={styles.section}>
@@ -105,23 +114,25 @@ export const ProfileDetailScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Action Buttons - Fixed at Bottom */}
-      <View style={styles.actionContainer}>
-        <TouchableOpacity
-          style={styles.likeButton}
-          onPress={() => console.log('Like')}
-          activeOpacity={0.8}>
-          <Text style={styles.likeIcon}>💜</Text>
-          <Text style={styles.likeText}>LIKE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.sendMessageButton}
-          onPress={handleSendMessage}
-          activeOpacity={0.8}>
-          <Text style={styles.sendMessageIcon}>💬</Text>
-          <Text style={styles.sendMessageText}>MESSAGE</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Action Buttons - Hide if self */}
+      {!isSelf && (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={() => console.log('Like')}
+            activeOpacity={0.8}>
+            <Text style={styles.likeIcon}>💜</Text>
+            <Text style={styles.likeText}>LIKE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.sendMessageButton}
+            onPress={handleSendMessage}
+            activeOpacity={0.8}>
+            <Text style={styles.sendMessageIcon}>💬</Text>
+            <Text style={styles.sendMessageText}>MESSAGE</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Sidebar Drawer */}
       <Modal
@@ -130,6 +141,7 @@ export const ProfileDetailScreen: React.FC = () => {
         animationType="fade"
         onRequestClose={() => setSidebarVisible(false)}>
         <View style={styles.modalOverlay}>
+          {/* Sidebar content here needs to be wrapped or handled if Sidebar component expects specific props */}
           <View style={styles.sidebarContainer}>
             <Sidebar onClose={() => setSidebarVisible(false)} />
           </View>

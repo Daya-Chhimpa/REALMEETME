@@ -1,4 +1,6 @@
+
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { RootState } from '../store';
 import api from '../../services/api';
 import {
     getRegistrationDraft,
@@ -25,6 +27,7 @@ export interface RegistrationData {
     images?: { url: string; type: string; filename: string }[];
     interests?: string[];
     otpVerified?: boolean;
+    address?: string;
     // Add other fields as necessary
 }
 
@@ -193,6 +196,75 @@ export const resetPassword = createAsyncThunk(
     },
 );
 
+export const getProfile = createAsyncThunk(
+    'auth/getProfile',
+    async (_, { rejectWithValue, getState }) => {
+        try {
+            const state = getState() as RootState;
+            const userid = state.auth.user?._id;
+            const token = state.auth.token;
+            const config = {
+                headers: {
+                    userid: userid,
+                    Authorization: `Bearer ${token}`,
+                },
+            };
+            const response = await api.get('/auth/profile/get', config);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to fetch profile',
+            );
+        }
+    },
+);
+
+export const updateProfile = createAsyncThunk(
+    'auth/updateProfile',
+    async (profileData: any, { rejectWithValue, getState }) => {
+        try {
+            const state = getState() as RootState;
+            const userid = state.auth.user?._id;
+            const token = state.auth.token;
+            const config = {
+                headers: {
+                    userid: userid,
+                    Authorization: `Bearer ${token}`,
+                },
+            };
+            const response = await api.put('/auth/profile/update', profileData, config);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to update profile',
+            );
+        }
+    },
+);
+
+export const changePassword = createAsyncThunk(
+    'auth/changePassword',
+    async (data: any, { rejectWithValue, getState }) => {
+        try {
+            const state = getState() as RootState;
+            const userid = state.auth.user?._id;
+            const token = state.auth.token;
+            const config = {
+                headers: {
+                    userid: userid,
+                    Authorization: `Bearer ${token}`,
+                },
+            };
+            const response = await api.put('/auth/password/change', data, config);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to change password',
+            );
+        }
+    },
+);
+
 export const loadRegistrationDraft = createAsyncThunk(
     'auth/loadRegistrationDraft',
     async (_, { rejectWithValue }) => {
@@ -219,20 +291,24 @@ export const saveDraft = createAsyncThunk(
     }
 );
 
+export const logoutUser = createAsyncThunk(
+    'auth/logout',
+    async (_, { rejectWithValue }) => {
+        try {
+            await removeToken();
+            await removeUser();
+            await clearRegistrationDraft();
+            return;
+        } catch (error) {
+            return rejectWithValue('Failed to logout');
+        }
+    }
+);
+
 const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
-        logout: state => {
-            state.user = null;
-            state.token = null;
-            state.otpSent = false;
-            state.otpVerified = false;
-            state.error = null;
-            state.registrationDraft = {};
-            removeToken();
-            removeUser();
-        },
         clearError: state => {
             state.error = null;
         },
@@ -247,6 +323,7 @@ const authSlice = createSlice({
             .addCase(initializeAuth.pending, state => {
                 state.isLoading = true;
             })
+            // ... (rest of cases)
             .addCase(initializeAuth.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isInitialized = true;
@@ -325,6 +402,42 @@ const authSlice = createSlice({
             .addCase(loginUser.rejected, (state, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+            })
+            // Get Profile
+            .addCase(getProfile.pending, state => {
+                state.isLoading = true;
+            })
+            .addCase(getProfile.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.user = action.payload.data || action.payload;
+            })
+            .addCase(getProfile.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Update Profile
+            .addCase(updateProfile.pending, state => {
+                state.isLoading = true;
+            })
+            .addCase(updateProfile.fulfilled, (state, action) => {
+                state.isLoading = false;
+                // Assuming payload contains updated user object or data wrapper
+                state.user = action.payload.data || action.payload;
+            })
+            .addCase(updateProfile.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
+            })
+            // Change Password
+            .addCase(changePassword.pending, state => {
+                state.isLoading = true;
+            })
+            .addCase(changePassword.fulfilled, state => {
+                state.isLoading = false;
+            })
+            .addCase(changePassword.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload as string;
             });
 
         // Drafts
@@ -334,8 +447,19 @@ const authSlice = createSlice({
         builder.addCase(saveDraft.fulfilled, (state, action) => {
             state.registrationDraft = action.payload;
         });
+
+        // Logout
+        builder.addCase(logoutUser.fulfilled, (state) => {
+            state.user = null;
+            state.token = null;
+            state.otpSent = false;
+            state.otpVerified = false;
+            state.error = null;
+            state.registrationDraft = {};
+            state.isLoading = false;
+        });
     },
 });
 
-export const { logout, clearError, resetRegistration } = authSlice.actions;
+export const { clearError, resetRegistration } = authSlice.actions;
 export default authSlice.reducer;

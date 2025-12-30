@@ -38,9 +38,9 @@ export const RelationshipStatusScreen: React.FC = () => {
 
   const [selected, setSelected] = useState<string | null>((registrationDraft as any).relationshipStatus || null);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (selected) {
-      dispatch(saveDraft({ relationshipStatus: selected } as any));
+      await dispatch(saveDraft({ relationshipStatus: selected } as any));
       navigate('lookingfor');
     }
   };

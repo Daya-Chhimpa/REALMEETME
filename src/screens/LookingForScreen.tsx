@@ -33,10 +33,10 @@ export const LookingForScreen: React.FC = () => {
 
   const [selected, setSelected] = useState<string | null>((registrationDraft as any).lookingFor || null);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (selected) {
-      dispatch(saveDraft({ lookingFor: selected } as any));
-      navigate('interests');
+      await dispatch(saveDraft({ lookingFor: selected } as any));
+      navigate('address');
     }
   };
 

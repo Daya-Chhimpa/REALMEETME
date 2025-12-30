@@ -19,6 +19,7 @@ import { GenderScreen } from './src/screens/GenderScreen';
 import { BirthdayScreen } from './src/screens/BirthdayScreen';
 import { RelationshipStatusScreen } from './src/screens/RelationshipStatusScreen';
 import { LookingForScreen } from './src/screens/LookingForScreen';
+import { AddressScreen } from './src/screens/AddressScreen';
 import { PhotoUploadScreen } from './src/screens/PhotoUploadScreen';
 import { InterestsScreen } from './src/screens/InterestsScreen';
 import { PasswordScreen } from './src/screens/PasswordScreen';
@@ -37,6 +38,7 @@ import { PremiumScreen } from './src/screens/PremiumScreen';
 import { HelpSupportScreen } from './src/screens/HelpSupportScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from './src/screens/ResetPasswordScreen';
+import { ChangePasswordScreen } from './src/screens/ChangePasswordScreen';
 import {
   NavigationProvider,
   useNavigation,
@@ -54,26 +56,48 @@ function AppNavigator(): React.JSX.Element {
     dispatch(loadRegistrationDraft());
   }, [dispatch]);
 
+  // Define screens that don't require authentication (Auth Flow)
+  const authScreens: Screen[] = [
+    'welcome',
+    'mobile',
+    'otp',
+    'login',
+    'signup',
+    'forgotrequest',
+    'forgotreset'
+  ];
+
   // Determine the correct startup screen based on state
   useEffect(() => {
     if (isInitialized) {
       if (token) {
-        reset('matches');
+        // User is logged in
+        // If currently on an auth screen, redirect to main app (matches)
+        if (authScreens.includes(currentScreen)) {
+          reset('matches');
+        }
+        // If on a private screen (chat, profile, etc), stay there.
       } else {
-        // If not logged in, check draft to resume registration
+        // User is not logged in
+        // Check draft to resume registration
         const nextScreen = getRegistrationNextStep(registrationDraft);
-        // Only redirect if we are currently at 'welcome' (default) to avoid overriding user navigation during use
-        // But on cold start, currentScreen is 'welcome'.
-        // If user explicitly logs out, token is null, draft empty -> welcome.
 
-        // We only want to auto-navigate if the computed next screen is NOT welcome, 
-        // meaning they have some progress.
-        if (nextScreen !== 'welcome') {
+        // If the system suggests 'welcome' (start), but user is active on an entry screen, allow it.
+        // This prevents the loop: Welcome -> Click Start -> Mobile -> App Checks -> Redirect Welcome
+        if (nextScreen === 'welcome') {
+          if (authScreens.includes(currentScreen)) {
+            return;
+          }
+        }
+
+        // Ensure we are on the correct screen for the draft state
+        // Only redirect if we are NOT on the expected screen
+        if (currentScreen !== nextScreen) {
           reset(nextScreen);
         }
       }
     }
-  }, [isInitialized, token, registrationDraft]); // removed registrationDraft from deps to avoid loop? No, draft changes only on save.
+  }, [isInitialized, token, registrationDraft, currentScreen]);
 
   const getRegistrationNextStep = (draft: any): Screen => {
     // If no mobile number, start at welcome
@@ -89,6 +113,7 @@ function AppNavigator(): React.JSX.Element {
     if (!draft.dob) return 'birthday';
     if (!draft.relationshipStatus) return 'relationship';
     if (!draft.lookingFor) return 'lookingfor';
+    if (!draft.address) return 'address';
     // interests is optional-ish but screen exists. If it's missing, go there.
     // If user skipped it, we should probably save empty array to mark it done? 
     // Current implementation of InterestsScreen saves array (empty if skipped).
@@ -96,7 +121,7 @@ function AppNavigator(): React.JSX.Element {
     if (!draft.interests) return 'interests';
 
     // Photos - array exists?
-    if (!draft.images || draft.images.length === 0) return 'photos';
+    if (!draft.images) return 'photos';
 
     // Password - last step
     return 'password';
@@ -128,6 +153,8 @@ function AppNavigator(): React.JSX.Element {
         return <RelationshipStatusScreen />;
       case 'lookingfor':
         return <LookingForScreen />;
+      case 'address':
+        return <AddressScreen />;
       case 'interests':
         return <InterestsScreen />;
       case 'photos':
@@ -164,6 +191,8 @@ function AppNavigator(): React.JSX.Element {
         return <ForgotPasswordScreen />;
       case 'forgotreset':
         return <ResetPasswordScreen />;
+      case 'changepassword':
+        return <ChangePasswordScreen />;
       default:
         return <WelcomeScreen />;
     }

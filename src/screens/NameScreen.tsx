@@ -21,9 +21,9 @@ export const NameScreen: React.FC = () => {
 
   const [name, setName] = useState(registrationDraft.name || '');
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (name.trim()) {
-      dispatch(saveDraft({ name: name.trim() }));
+      await dispatch(saveDraft({ name: name.trim() }));
       navigate('gender');
     }
   };

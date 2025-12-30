@@ -21,9 +21,9 @@ export const GenderScreen: React.FC = () => {
 
   const [selected, setSelected] = useState<'male' | 'female' | null>((registrationDraft.gender as any) || null);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (selected) {
-      dispatch(saveDraft({ gender: selected }));
+      await dispatch(saveDraft({ gender: selected }));
       navigate('birthday');
     }
   };
