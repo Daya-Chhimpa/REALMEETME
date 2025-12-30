@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,114 +10,49 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {Sidebar} from '../components/Sidebar';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Sidebar } from '../components/Sidebar';
+import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { getLikesList, likeUser } from '../redux/slices/matchSlice';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing[4] * 3) / 2;
 
-interface LikedUser {
-  id: number;
-  name: string;
-  age: number;
-  image: string;
-  likedTime: string;
-  online: boolean;
-  verified: boolean;
-  location: string;
-}
-
-const LIKED_USERS: LikedUser[] = [
-  {
-    id: 1,
-    name: 'Priya',
-    age: 24,
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop',
-    likedTime: '2 hours ago',
-    online: true,
-    verified: true,
-    location: 'Mumbai',
-  },
-  {
-    id: 2,
-    name: 'Anjali',
-    age: 23,
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop',
-    likedTime: '5 hours ago',
-    online: false,
-    verified: true,
-    location: 'Delhi',
-  },
-  {
-    id: 3,
-    name: 'Simran',
-    age: 22,
-    image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=400&h=500&fit=crop',
-    likedTime: '1 day ago',
-    online: true,
-    verified: false,
-    location: 'Chandigarh',
-  },
-  {
-    id: 4,
-    name: 'Neha',
-    age: 25,
-    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=500&fit=crop',
-    likedTime: '2 days ago',
-    online: false,
-    verified: true,
-    location: 'Bangalore',
-  },
-  {
-    id: 5,
-    name: 'Kavya',
-    age: 21,
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop',
-    likedTime: '3 days ago',
-    online: true,
-    verified: true,
-    location: 'Pune',
-  },
-  {
-    id: 6,
-    name: 'Riya',
-    age: 26,
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=500&fit=crop',
-    likedTime: '4 days ago',
-    online: false,
-    verified: false,
-    location: 'Hyderabad',
-  },
-];
-
 export const LikesYouScreen: React.FC = () => {
-  const {navigate} = useNavigation();
+  const { navigate } = useNavigation();
+  const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [likedUsers, setLikedUsers] = useState(LIKED_USERS);
+  const { likesList, likesLoading } = useAppSelector(state => state.match);
 
-  const handleUserPress = (user: LikedUser) => {
+  useEffect(() => {
+    dispatch(getLikesList({ page: 1, limit: 1000 })); // Fetch reasonable amount
+  }, [dispatch]);
+
+  const handleUserPress = (user: any) => {
+    // Navigate to detail, passing user data or ID if route supports it
+    // navigate('profiledetail', { userId: user._id }); 
+    // Assuming simple nav for now as per original code
     navigate('profiledetail');
   };
 
-  const handleLikeBack = (userId: number) => {
+  const handleLikeBack = (userId: string) => {
     console.log('Liked back:', userId);
-    // Show match animation or navigate to chat
-    const user = likedUsers.find(u => u.id === userId);
-    if (user) {
-      // Remove from list after matching
-      setLikedUsers(likedUsers.filter(u => u.id !== userId));
-    }
+    dispatch(likeUser(userId));
+    // Optimistically update or re-fetch? 
+    // Usually liking back moves them to Matches.
+    // For now, let's just trigger the API.
   };
 
-  const handleMessage = (userId: number) => {
+  const handleMessage = (userId: string) => {
     navigate('chat');
   };
 
-  const handleSkip = (userId: number) => {
-    setLikedUsers(likedUsers.filter(u => u.id !== userId));
+  const handleSkip = (userId: string) => {
+    // Implement skip/remove logic if API supports it, or local hide
   };
 
   const handleGoPremium = () => {
@@ -145,7 +80,7 @@ export const LikesYouScreen: React.FC = () => {
           <Text style={styles.headerTitle}>Likes You</Text>
           <View style={styles.likesCount}>
             <Text style={styles.likesCountIcon}>💖</Text>
-            <Text style={styles.likesCountText}>{likedUsers.length}</Text>
+            <Text style={styles.likesCountText}>{likesList.length}</Text>
           </View>
         </View>
 
@@ -161,8 +96,8 @@ export const LikesYouScreen: React.FC = () => {
         activeOpacity={0.9}>
         <LinearGradient
           colors={colors.gradient.gold as [string, string]}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
           style={styles.premiumGradient}>
           <View style={styles.premiumContent}>
             <Text style={styles.premiumIcon}>👑</Text>
@@ -182,92 +117,112 @@ export const LikesYouScreen: React.FC = () => {
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {likedUsers.map(user => (
-            <TouchableOpacity
-              key={user.id}
-              style={styles.card}
-              onPress={() => handleUserPress(user)}
-              activeOpacity={0.9}>
-              <Image source={{uri: user.image}} style={styles.cardImage} />
 
-              {/* Online Indicator */}
-              {user.online && (
-                <View style={styles.onlineBadge}>
-                  <View style={styles.onlineDot} />
-                </View>
-              )}
+        {likesLoading ? (
+          <View style={{ padding: 20 }}>
+            <ActivityIndicator size="large" color={colors.brand.primary} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.grid}>
+              {likesList?.map(user => (
+                <TouchableOpacity
+                  key={user._id}
+                  style={styles.card}
+                  onPress={() => handleUserPress(user)}
+                  activeOpacity={0.9}>
+                  <Image
+                    source={{
+                      uri: user.images?.[0]?.url
+                        ? user.images[0].url
+                        : 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&h=800&fit=crop'
+                    }}
+                    style={styles.cardImage}
+                  />
 
-              {/* Verified Badge */}
-              {user.verified && (
-                <View style={styles.verifiedBadge}>
-                  <Text style={styles.verifiedIcon}>✓</Text>
-                </View>
-              )}
+                  {/* Online Indicator */}
+                  {user.isOnline && (
+                    <View style={styles.onlineBadge}>
+                      <View style={styles.onlineDot} />
+                    </View>
+                  )}
 
-              {/* Like Badge */}
-              <View style={styles.likeBadge}>
-                <LinearGradient
-                  colors={colors.gradient.primary as [string, string]}
-                  style={styles.likeBadgeGradient}>
-                  <Text style={styles.likeBadgeIcon}>❤️</Text>
-                </LinearGradient>
-              </View>
+                  {/* Verified Badge */}
+                  {user.isVerified && (
+                    <View style={styles.verifiedBadge}>
+                      <Text style={styles.verifiedIcon}>✓</Text>
+                    </View>
+                  )}
 
-              {/* Gradient Overlay */}
-              <LinearGradient
-                colors={colors.gradient.cardOverlay as [string, string, string]}
-                style={styles.cardOverlay}>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardName}>
-                    {user.name}, {user.age}
-                  </Text>
-                  <View style={styles.locationRow}>
-                    <Text style={styles.locationIcon}>📍</Text>
-                    <Text style={styles.cardLocation}>{user.location}</Text>
-                  </View>
-                  <Text style={styles.cardTime}>Liked {user.likedTime}</Text>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.cardActions}>
-                  <TouchableOpacity
-                    style={styles.skipButton}
-                    onPress={() => handleSkip(user.id)}>
-                    <Text style={styles.skipIcon}>✕</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.messageButton}
-                    onPress={() => handleMessage(user.id)}>
-                    <Text style={styles.messageIcon}>💬</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.likeBackButton}
-                    onPress={() => handleLikeBack(user.id)}>
+                  {/* Like Badge */}
+                  <View style={styles.likeBadge}>
                     <LinearGradient
                       colors={colors.gradient.primary as [string, string]}
-                      style={styles.likeBackGradient}>
-                      <Text style={styles.likeBackIcon}>❤️</Text>
+                      style={styles.likeBadgeGradient}>
+                      <Text style={styles.likeBadgeIcon}>❤️</Text>
                     </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
-        </View>
+                  </View>
 
-        {likedUsers.length === 0 && (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>💫</Text>
+                  {/* Gradient Overlay */}
+                  <LinearGradient
+                    colors={colors.gradient.cardOverlay as [string, string, string]}
+                    style={styles.cardOverlay}>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardName}>
+                        {user.name}, {user.age}
+                      </Text>
+                      <View style={styles.locationRow}>
+                        <Text style={styles.locationIcon}>📍</Text>
+                        <Text style={styles.cardLocation}>
+                          {typeof user.location === 'string'
+                            ? user.location
+                            : (user.location as any)?.address || 'Unknown'}
+                        </Text>
+                      </View>
+                      {/* <Text style={styles.cardTime}>Liked {user.likedTime}</Text> */}
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity
+                        style={styles.skipButton}
+                        onPress={() => handleSkip(user._id)}>
+                        <Text style={styles.skipIcon}>✕</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.messageButton}
+                        onPress={() => handleMessage(user._id)}>
+                        <Text style={styles.messageIcon}>💬</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.likeBackButton}
+                        onPress={() => handleLikeBack(user._id)}>
+                        <LinearGradient
+                          colors={colors.gradient.primary as [string, string]}
+                          style={styles.likeBackGradient}>
+                          <Text style={styles.likeBackIcon}>❤️</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))}
             </View>
-            <Text style={styles.emptyTitle}>No likes yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Keep swiping to get more matches!
-            </Text>
-          </View>
+
+            {likesList.length === 0 && (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Text style={styles.emptyIconText}>💫</Text>
+                </View>
+                <Text style={styles.emptyTitle}>No likes yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Keep swiping to get more matches!
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -480,7 +435,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '40%',
     right: -10,
-    transform: [{rotate: '-15deg'}],
+    transform: [{ rotate: '-15deg' }],
   },
   likeBadgeGradient: {
     width: 44,
@@ -509,7 +464,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
     textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: {width: 0, height: 1},
+    textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   locationRow: {

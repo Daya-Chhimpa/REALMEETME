@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,15 @@ import {
   Dimensions,
   PanResponder,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Sidebar } from '../components/Sidebar';
 import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { setFilters, resetFilters, getRandomUsers, updateFilters, loadFilters } from '../redux/slices/matchSlice';
+import api from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -129,56 +133,93 @@ const sliderStyles = StyleSheet.create({
   },
 });
 
-
-const POPULAR_CITIES = [
-  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-  'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow',
-  'Chandigarh', 'Indore', 'Surat', 'Nagpur', 'Goa',
-];
-
 export const SearchScreen: React.FC = () => {
   const { navigate } = useNavigation();
-  const [ageRange, setAgeRange] = useState({ min: 18, max: 35 });
-  const [distance, setDistance] = useState(50);
-  const [selectedGender, setSelectedGender] = useState('women');
-  const [selectedCity, setSelectedCity] = useState('');
+  const dispatch = useAppDispatch();
+  const { filters } = useAppSelector(state => state.match);
+  const { user } = useAppSelector(state => state.auth);
+
+  // Initialize state from Redux or defaults
+  // Default gender: opposite of user if not set in filters yet
+  const defaultGender = user?.gender === 'Male' ? 'women' : 'men';
+
+  const [ageRange, setAgeRange] = useState({ min: filters.minAge, max: filters.maxAge });
+  const [distance, setDistance] = useState(filters.distance);
+  const [selectedGender, setSelectedGender] = useState(filters.gender || defaultGender);
+  const [selectedCity, setSelectedCity] = useState(filters.city);
   const [citySearch, setCitySearch] = useState('');
   const [showCityModal, setShowCityModal] = useState(false);
-  const [photosOnly, setPhotosOnly] = useState(true);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [onlineNow, setOnlineNow] = useState(false);
+  const [photosOnly, setPhotosOnly] = useState(filters.photosOnly);
+  const [verifiedOnly, setVerifiedOnly] = useState(filters.verifiedOnly);
+  const [onlineNow, setOnlineNow] = useState(filters.onlineNow);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const filteredCities = POPULAR_CITIES.filter(city =>
-    city.toLowerCase().includes(citySearch.toLowerCase())
+  // Cities logic
+  const [cities, setCities] = useState<any[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  useEffect(() => {
+    // Load persisted filters on mount
+    dispatch(loadFilters());
+    fetchCities();
+  }, [dispatch]);
+
+  // Sync state with filters when they change (e.g. after loadFilters)
+  useEffect(() => {
+    setAgeRange({ min: filters.minAge, max: filters.maxAge });
+    setDistance(filters.distance);
+    setSelectedGender(filters.gender || defaultGender);
+    setSelectedCity(filters.city);
+    setPhotosOnly(filters.photosOnly);
+    setVerifiedOnly(filters.verifiedOnly);
+    setOnlineNow(filters.onlineNow);
+  }, [filters, defaultGender]);
+
+  const fetchCities = async () => {
+    setCitiesLoading(true);
+    try {
+      const response = await api.post('/cities', {});
+      if (response.data?.data?.cities) {
+        setCities(response.data.data.cities);
+      }
+    } catch (error) {
+      console.log('Error fetching cities', error);
+    } finally {
+      setCitiesLoading(false);
+    }
+  };
+
+  const filteredCities = cities.filter(city =>
+    city.name.toLowerCase().includes(citySearch.toLowerCase())
   );
 
-  const handleSearch = () => {
-    console.log('Search with:', {
-      ageRange,
+  const handleSearch = async () => {
+    // 1. Save filters to Redux & Storage
+    await dispatch(updateFilters({
+      minAge: ageRange.min,
+      maxAge: ageRange.max,
       distance,
-      selectedGender,
-      selectedCity,
+      gender: selectedGender,
+      city: selectedCity,
       photosOnly,
       verifiedOnly,
-      onlineNow,
-    });
+      onlineNow
+    }));
+
+    // 2. Fetch new users
+    dispatch(getRandomUsers());
+
+    // 3. Navigate
     navigate('matches');
   };
 
   const handleReset = () => {
-    setAgeRange({ min: 18, max: 35 });
-    setDistance(50);
-    setSelectedGender('women');
-    setSelectedCity('');
-    setCitySearch('');
-    setPhotosOnly(true);
-    setVerifiedOnly(false);
-    setOnlineNow(false);
+    dispatch(resetFilters());
+    // Local state will update via useEffect
   };
 
-  const handleCitySelect = (city: string) => {
-    setSelectedCity(city);
+  const handleCitySelect = (city: any) => {
+    setSelectedCity(city.name); // Using name for now, logic might require ID if API needs ID. But matchSlice sends 'city' string.
     setCitySearch('');
     setShowCityModal(false);
   };
@@ -498,22 +539,31 @@ export const SearchScreen: React.FC = () => {
             </TouchableOpacity>
 
             {/* City List */}
+            {/* City List */}
             <ScrollView style={styles.cityList} showsVerticalScrollIndicator={false}>
-              {filteredCities.map(city => (
-                <TouchableOpacity
-                  key={city}
-                  style={styles.cityOption}
-                  onPress={() => handleCitySelect(city)}
-                  activeOpacity={0.7}>
-                  <Text style={styles.cityOptionIcon}>📍</Text>
-                  <Text style={styles.cityOptionText}>{city}</Text>
-                  {selectedCity === city && <Text style={styles.cityOptionCheck}>✓</Text>}
-                </TouchableOpacity>
-              ))}
-              {filteredCities.length === 0 && (
-                <View style={styles.noCityResult}>
-                  <Text style={styles.noCityText}>No cities found</Text>
+              {citiesLoading ? (
+                <View style={{ padding: 20 }}>
+                  <ActivityIndicator size="small" color={colors.brand.primary} />
                 </View>
+              ) : (
+                <>
+                  {filteredCities.map((city, index) => (
+                    <TouchableOpacity
+                      key={city._id || index}
+                      style={styles.cityOption}
+                      onPress={() => handleCitySelect(city)}
+                      activeOpacity={0.7}>
+                      <Text style={styles.cityOptionIcon}>📍</Text>
+                      <Text style={styles.cityOptionText}>{city.name}</Text>
+                      {selectedCity === city.name && <Text style={styles.cityOptionCheck}>✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                  {filteredCities.length === 0 && (
+                    <View style={styles.noCityResult}>
+                      <Text style={styles.noCityText}>No cities found</Text>
+                    </View>
+                  )}
+                </>
               )}
             </ScrollView>
           </View>

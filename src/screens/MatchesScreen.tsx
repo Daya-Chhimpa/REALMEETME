@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,125 +10,59 @@ import {
   Image,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {Sidebar} from '../components/Sidebar';
-import {ActionButton} from '../components/Button';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Sidebar } from '../components/Sidebar';
+import { ActionButton } from '../components/Button';
+import { useNavigation } from '../navigation/NavigationContext';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { getRandomUsers, nextProfile, likeUser } from '../redux/slices/matchSlice';
 
-const {width, height} = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
 const CARD_HEIGHT = height * 0.65;
 
-interface Profile {
-  id: number;
-  name: string;
-  age: number;
-  location: string;
-  status: string;
-  lookingFor: string;
-  phone: string;
-  image: string;
-  verified: boolean;
-  online: boolean;
-}
-
-const PROFILES: Profile[] = [
-  {
-    id: 1,
-    name: 'Kanchan',
-    age: 21,
-    location: 'Amritsar',
-    status: 'Single',
-    lookingFor: 'Looking for non-committal relationship',
-    phone: '6284XXXXXX',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop',
-    verified: true,
-    online: true,
-  },
-  {
-    id: 2,
-    name: 'Priya',
-    age: 24,
-    location: 'Delhi',
-    status: 'Single',
-    lookingFor: 'Looking for serious relationship',
-    phone: '9876XXXXXX',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
-    verified: true,
-    online: false,
-  },
-  {
-    id: 3,
-    name: 'Anjali',
-    age: 23,
-    location: 'Mumbai',
-    status: 'Single',
-    lookingFor: 'Looking for new friends',
-    phone: '8765XXXXXX',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&h=800&fit=crop',
-    verified: false,
-    online: true,
-  },
-  {
-    id: 4,
-    name: 'Simran',
-    age: 22,
-    location: 'Chandigarh',
-    status: 'Single',
-    lookingFor: 'Looking for dating',
-    phone: '7654XXXXXX',
-    image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&h=800&fit=crop',
-    verified: true,
-    online: true,
-  },
-  {
-    id: 5,
-    name: 'Neha',
-    age: 25,
-    location: 'Bangalore',
-    status: 'Single',
-    lookingFor: 'Looking for marriage',
-    phone: '6543XXXXXX',
-    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=800&fit=crop',
-    verified: true,
-    online: false,
-  },
-];
-
 export const MatchesScreen: React.FC = () => {
-  const {navigate} = useNavigation();
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const { navigate } = useNavigation();
+  const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const currentProfile = PROFILES[currentIndex];
+  const { profiles, currentProfileIndex, isLoading, filters } = useAppSelector(state => state.match);
+  const { user } = useAppSelector(state => state.auth);
+
+  useEffect(() => {
+    // If no profiles loaded (or likely first load), fetch them.
+    // Also if filters changed significantly we might want to refetch, 
+    // but SearchScreen handles the refetch dispatch before navigation.
+    // So here just ensure we have something if it's empty.
+    if (profiles.length === 0 && !isLoading) {
+      dispatch(getRandomUsers());
+    }
+  }, [dispatch, profiles.length]); // Intentionally not including isLoading to avoid loop
+
+  const currentProfile = profiles[currentProfileIndex];
 
   const handleSendMessage = () => {
-    console.log('Send Message to:', currentProfile.name);
+    console.log('Send Message to:', currentProfile?.name);
     navigate('chat');
   };
 
   const handleSkip = () => {
-    console.log('Skip:', currentProfile.name);
-    if (currentIndex < PROFILES.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      console.log('No more profiles');
-    }
+    console.log('Skip:', currentProfile?.name);
+    dispatch(nextProfile());
   };
 
   const handleLike = () => {
-    console.log('Like:', currentProfile.name);
-    if (currentIndex < PROFILES.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      console.log('No more profiles');
+    if (currentProfile) {
+      dispatch(likeUser(currentProfile._id));
+      dispatch(nextProfile());
     }
   };
 
   const handleSuperLike = () => {
-    console.log('Super Like:', currentProfile.name);
+    console.log('Super Like:', currentProfile?.name);
   };
 
   return (
@@ -162,118 +96,176 @@ export const MatchesScreen: React.FC = () => {
       </View>
 
       {/* Main Content */}
+      {/* Main Content */}
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
 
-        {/* Profile Card */}
-        {currentProfile ? (
-          <View style={styles.cardContainer}>
-            <View style={styles.card}>
-              {/* Profile Image */}
-              <Image
-                source={{uri: currentProfile.image}}
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-
-              {/* Top Badges */}
-              <View style={styles.topBadges}>
-                {currentProfile.online && (
-                  <View style={styles.onlineBadge}>
-                    <View style={styles.onlineDot} />
-                    <Text style={styles.onlineText}>Online</Text>
-                  </View>
-                )}
-                {currentProfile.verified && (
-                  <View style={styles.verifiedBadge}>
-                    <Text style={styles.verifiedIcon}>✓</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Gradient Overlay */}
-              <LinearGradient
-                colors={colors.gradient.cardOverlay as [string, string, string]}
-                style={styles.cardOverlay}
-              />
-
-              {/* Profile Info Overlay */}
-              <View style={styles.profileInfoOverlay}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{currentProfile.name}</Text>
-                  <Text style={styles.age}>, {currentProfile.age}</Text>
-                </View>
-
-                <View style={styles.locationRow}>
-                  <Text style={styles.locationIcon}>📍</Text>
-                  <Text style={styles.location}>{currentProfile.location}</Text>
-                </View>
-
-                <Text style={styles.looking}>{currentProfile.lookingFor}</Text>
-              </View>
-            </View>
-
-            {/* Send Message Button */}
-            <TouchableOpacity
-              style={styles.sendMessageButton}
-              onPress={handleSendMessage}
-              activeOpacity={0.9}>
-              <LinearGradient
-                colors={colors.gradient.accent as [string, string]}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={styles.sendMessageGradient}>
-                <Text style={styles.sendMessageIcon}>💬</Text>
-                <Text style={styles.sendMessageText}>SEND MESSAGE</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Extended Profile Info */}
-            <View style={styles.profileDetails}>
-              <Text style={styles.sectionTitle}>About</Text>
-
-              <View style={styles.infoCard}>
-                <View style={styles.infoRow}>
-                  <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Status</Text>
-                    <Text style={styles.infoValue}>{currentProfile.status}</Text>
-                  </View>
-                  <View style={styles.infoDivider} />
-                  <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Age</Text>
-                    <Text style={styles.infoValue}>{currentProfile.age} years</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Verification Section */}
-              <Text style={styles.sectionTitle}>Verification</Text>
-              <View style={styles.verificationCard}>
-                <View style={styles.verificationRow}>
-                  <View style={styles.verificationIconContainer}>
-                    <Text style={styles.verificationItemIcon}>📱</Text>
-                  </View>
-                  <View style={styles.verificationInfo}>
-                    <Text style={styles.verificationLabel}>Mobile Verified</Text>
-                    <Text style={styles.verificationValue}>{currentProfile.phone}</Text>
-                  </View>
-                  <View style={styles.verifiedCheckmark}>
-                    <Text style={styles.checkmarkIcon}>✓</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+        {/* Loading State */}
+        {isLoading && profiles.length === 0 ? (
+          <View style={styles.noMoreProfiles}>
+            <ActivityIndicator size="large" color={colors.brand.primary} />
+            <Text style={[styles.noMoreSubtext, { marginTop: 20 }]}>Finding matches around you...</Text>
           </View>
         ) : (
-          <View style={styles.noMoreProfiles}>
-            <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>💫</Text>
-            </View>
-            <Text style={styles.noMoreText}>No more profiles</Text>
-            <Text style={styles.noMoreSubtext}>Check back later for new matches!</Text>
-          </View>
+          <>
+            {/* Profile Card */}
+            {currentProfile ? (
+              <View style={styles.cardContainer}>
+                <View style={styles.card}>
+                  {/* Profile Image */}
+                  <Image
+                    source={{
+                      uri: currentProfile.images?.[0]?.url
+                        ? currentProfile.images[0].url
+                        : 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&h=800&fit=crop'
+                    }}
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+
+                  {/* Top Badges */}
+                  <View style={styles.topBadges}>
+                    {currentProfile.isOnline && (
+                      <View style={styles.onlineBadge}>
+                        <View style={styles.onlineDot} />
+                        <Text style={styles.onlineText}>Online</Text>
+                      </View>
+                    )}
+                    {currentProfile.isVerified && (
+                      <View style={styles.verifiedBadge}>
+                        <Text style={styles.verifiedIcon}>✓</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Gradient Overlay */}
+                  <LinearGradient
+                    colors={colors.gradient.cardOverlay as [string, string, string]}
+                    style={styles.cardOverlay}
+                  />
+
+                  {/* Profile Info Overlay */}
+                  <View style={styles.profileInfoOverlay}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name}>{currentProfile.name}</Text>
+                      <Text style={styles.age}>, {currentProfile.age}</Text>
+                    </View>
+
+                    {currentProfile.location && (
+                      <View style={styles.locationRow}>
+                        <Text style={styles.locationIcon}>📍</Text>
+                        <Text style={styles.location}>
+                          {typeof currentProfile.location === 'string'
+                            ? currentProfile.location
+                            : (currentProfile.location as any).address || 'Unknown Location'}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Text style={styles.looking}>
+                      {/* Fallback if 'lookingFor' isn't in API, or use basic gender info */}
+                      Looking for a connection
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Send Message Button */}
+                <TouchableOpacity
+                  style={styles.sendMessageButton}
+                  onPress={handleSendMessage}
+                  activeOpacity={0.9}>
+                  <LinearGradient
+                    colors={colors.gradient.accent as [string, string]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.sendMessageGradient}>
+                    <Text style={styles.sendMessageIcon}>💬</Text>
+                    <Text style={styles.sendMessageText}>SEND MESSAGE</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Extended Profile Info */}
+                <View style={styles.profileDetails}>
+                  <Text style={styles.sectionTitle}>About</Text>
+
+                  <View style={styles.infoCard}>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Gender</Text>
+                        <Text style={styles.infoValue}>{currentProfile.gender}</Text>
+                      </View>
+                      <View style={styles.infoDivider} />
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Age</Text>
+                        <Text style={styles.infoValue}>{currentProfile.age} years</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Verification Section */}
+                  <Text style={styles.sectionTitle}>Verification</Text>
+                  <View style={styles.verificationCard}>
+                    <View style={styles.verificationRow}>
+                      <View style={styles.verificationIconContainer}>
+                        <Text style={styles.verificationItemIcon}>
+                          {currentProfile.isVerified ? '🛡️' : '⏱️'}
+                        </Text>
+                      </View>
+                      <View style={styles.verificationInfo}>
+                        <Text style={styles.verificationLabel}>
+                          {currentProfile.isVerified ? 'Identity Verified' : 'Pending Verification'}
+                        </Text>
+                        <Text style={styles.verificationValue}>
+                          {currentProfile.isVerified ? 'Profile authentic' : 'Details under review'}
+                        </Text>
+                      </View>
+                      {currentProfile.isVerified && (
+                        <View style={styles.verifiedCheckmark}>
+                          <Text style={styles.checkmarkIcon}>✓</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Interests - if available */}
+                  {currentProfile.interests && currentProfile.interests.length > 0 && (
+                    <>
+                      <Text style={styles.sectionTitle}>Interests</Text>
+                      <View style={[styles.infoCard, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
+                        {currentProfile.interests.map((interest, idx) => (
+                          <View key={idx} style={{
+                            backgroundColor: colors.background.primary,
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            borderWidth: 1,
+                            borderColor: colors.ui.border
+                          }}>
+                            <Text style={{ color: colors.text.secondary, fontSize: 12 }}>{interest}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.noMoreProfiles}>
+                <View style={styles.emptyIcon}>
+                  <Text style={styles.emptyIconText}>💫</Text>
+                </View>
+                <Text style={styles.noMoreText}>No more profiles</Text>
+                <Text style={styles.noMoreSubtext}>
+                  {profiles.length > 0 ? "You've seen everyone nearby." : "Try adjusting your filters."}
+                </Text>
+                <TouchableOpacity onPress={() => navigate('search')} style={{ marginTop: 20 }}>
+                  <Text style={{ color: colors.brand.primary, fontWeight: 'bold' }}>Adjust Filters</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -453,7 +445,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: {width: 0, height: 2},
+    textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   age: {
@@ -461,7 +453,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.normal,
     color: colors.text.primary,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: {width: 0, height: 2},
+    textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   locationRow: {
