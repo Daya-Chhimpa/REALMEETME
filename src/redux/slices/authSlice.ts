@@ -110,6 +110,7 @@ export const registerUser = createAsyncThunk(
             dob: string;
             images?: { url: string; type: string; filename: string }[];
             interests?: string[];
+            address?: string; // City ID
         },
         { rejectWithValue },
     ) => {

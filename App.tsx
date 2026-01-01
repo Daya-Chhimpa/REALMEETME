@@ -97,6 +97,9 @@ function AppNavigator(): React.JSX.Element {
           if (authScreens.includes(currentScreen)) {
             return;
           }
+          // If we are not on an auth screen (e.g. matches), and next step is welcome (logout), force welcome.
+          reset('welcome');
+          return;
         }
 
         // Check if current screen is part of the flow
