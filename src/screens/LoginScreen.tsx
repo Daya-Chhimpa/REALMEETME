@@ -44,6 +44,13 @@ export const LoginScreen: React.FC = () => {
 
   const handleLogin = async () => {
     setValidationError('');
+
+    // Strict 10 digit validation
+    if (phone.length !== 10) {
+      setValidationError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
     // Prefix +91 if missing (simple check)
     const formattedMobile = phone.startsWith('+') ? phone : `+91${phone}`;
 
@@ -94,6 +101,8 @@ export const LoginScreen: React.FC = () => {
   const handleSocialLogin = (provider: string) => {
     console.log('Social login:', provider);
   };
+
+  const isFormValid = phone.length === 10 && password.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -171,7 +180,7 @@ export const LoginScreen: React.FC = () => {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
                 onRightIconPress={() => setShowPassword(!showPassword)}
               />
               <TouchableOpacity
@@ -190,19 +199,23 @@ export const LoginScreen: React.FC = () => {
 
             {/* Login Button */}
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, (!isFormValid || isLoading) && styles.loginButtonDisabled]}
               onPress={handleLogin}
               activeOpacity={0.9}
-              disabled={isLoading}>
+              disabled={isLoading || !isFormValid}>
               <LinearGradient
-                colors={colors.gradient.primary as [string, string]}
+                colors={
+                  isFormValid
+                    ? (colors.gradient.primary as [string, string])
+                    : [colors.ui.borderDark, colors.ui.borderDark]
+                }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.loginGradient}>
-                <Text style={styles.loginButtonText}>
+                <Text style={[styles.loginButtonText, !isFormValid && { color: colors.text.tertiary }]}>
                   {isLoading ? 'SIGNING IN...' : 'SIGN IN'}
                 </Text>
-                {!isLoading && <Text style={styles.arrowIcon}>→</Text>}
+                {!isLoading && isFormValid && <Text style={styles.arrowIcon}>→</Text>}
               </LinearGradient>
             </TouchableOpacity>
 
@@ -409,6 +422,11 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     marginBottom: spacing[6],
     ...shadows.primaryGlow,
+  },
+  loginButtonDisabled: {
+    elevation: 0,
+    shadowOpacity: 0,
+    opacity: 0.7,
   },
   loginGradient: {
     flexDirection: 'row',

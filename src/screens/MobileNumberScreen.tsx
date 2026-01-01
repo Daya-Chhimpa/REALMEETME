@@ -121,13 +121,15 @@ export const MobileNumberScreen: React.FC = () => {
         </View>
 
         <TouchableOpacity
-          style={[styles.nextButton, !phone && styles.nextButtonDisabled]}
-          onPress={handleNext}
-          disabled={!phone}
+          style={[styles.nextButton, phone.length !== 10 && styles.nextButtonDisabled]}
+          onPress={() => {
+            if (phone.length === 10) handleNext();
+          }}
+          disabled={phone.length !== 10}
           activeOpacity={0.8}>
           <LinearGradient
             colors={
-              phone
+              phone.length === 10
                 ? (colors.gradient.primary as [string, string])
                 : [colors.ui.borderDark, colors.ui.borderDark]
             }

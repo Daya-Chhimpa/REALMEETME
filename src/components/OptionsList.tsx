@@ -57,7 +57,7 @@ export const OptionsList: React.FC<OptionsListProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    // flex: 1, // Removed to allow ScrollView to handle height
   },
   title: {
     fontSize: 24,

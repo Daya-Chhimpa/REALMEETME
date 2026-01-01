@@ -178,7 +178,7 @@ const CityModal: React.FC<CityModalProps> = ({ visible, onSelect, onClose, selec
   const fetchCities = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/cities', {});
+      const response = await api.post('/cities', { limit: 100000 });
       if (response.data?.data?.cities) {
         setCities(response.data.data.cities);
       }
@@ -351,6 +351,7 @@ export const EditProfileScreen: React.FC = () => {
   const [profileImageUri, setProfileImageUri] = useState<string>('');
   const [imageError, setImageError] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [allInterests, setAllInterests] = useState<any[]>([]); // Store fetched interests
 
   // Modals State
   const [showStatusModal, setShowStatusModal] = useState(false);
@@ -372,7 +373,19 @@ export const EditProfileScreen: React.FC = () => {
   // Initialize Data
   useEffect(() => {
     dispatch(getProfile());
+    fetchInterests();
   }, [dispatch]);
+
+  const fetchInterests = async () => {
+    try {
+      const response = await api.get('/interests');
+      if (response.data?.data) {
+        setAllInterests(response.data.data);
+      }
+    } catch (error) {
+      console.log('Error fetching interests', error);
+    }
+  };
 
   // Pre-fill form when user data loads
   useEffect(() => {
@@ -402,15 +415,30 @@ export const EditProfileScreen: React.FC = () => {
           console.log('Error parsing DOB', e);
         }
       }
-      setGender(user.gender || '');
-      setAddressId(user.address || ''); // Assuming API returns ID
-      // If the API returns a populated address object, handle it, otherwise we might just have ID
-      // For display, we might need to fetch the city name or rely on user.location if available
-      setAddressName(user.location || user.addressName || ''); // improved callback
+      setGender(user.gender || GENDER_OPTIONS[0].id);
 
-      setStatus(user.relationshipStatus || '');
-      setLookingFor(user.lookingFor || '');
-      setInterestIds(user.interests || []);
+      // Handle Address
+      if (typeof user.address === 'object' && user.address !== null) {
+        setAddressId(user.address._id || user.address.id || '');
+        setAddressName(user.address.name || user.location || '');
+      } else {
+        setAddressId(user.address || '');
+        // If address is just ID, use location name if available
+        setAddressName(user.location || user.addressName || '');
+      }
+
+      setStatus(user.relationshipStatus || RELATIONSHIP_OPTIONS[0].id);
+      setLookingFor(user.lookingFor || LOOKING_FOR_OPTIONS[0].id);
+
+      // Set default interest if none selected
+      if (user.interests && user.interests.length > 0) {
+        // If interests are objects, extract IDs
+        const interestIds = user.interests.map((i: any) => typeof i === 'string' ? i : i._id);
+        setInterestIds(interestIds);
+      } else if (allInterests.length > 0) {
+        // Default to first interest if available and user has none
+        setInterestIds([allInterests[0]._id]);
+      }
 
       if (user.images && user.images.length > 0) {
         setCurrentImages(user.images);
@@ -419,7 +447,7 @@ export const EditProfileScreen: React.FC = () => {
         setImageError(false);
       }
     }
-  }, [user]);
+  }, [user, allInterests]);
 
   // Helpers
   const getLabel = (options: any[], val: string) => options.find(o => o.id === val)?.label || val;

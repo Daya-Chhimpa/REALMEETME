@@ -11,11 +11,12 @@ import { colors, shadows } from '../theme/colors';
 import { Input } from '../components/Input';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
+import { BackButton } from '../components';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 
 export const NameScreen: React.FC = () => {
-  const { navigate } = useNavigation();
+  const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
@@ -35,13 +36,14 @@ export const NameScreen: React.FC = () => {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>What should we call you? ✨</Text>
-          <Text style={styles.subtitle}>This is how you'll appear on RealMeet</Text>
+          <BackButton onPress={goBack} variant="default" style={{ marginBottom: 16 }} />
+          <Text style={styles.title}>User Name</Text>
+          <Text style={styles.subtitle}>Enter your full name</Text>
         </View>
 
         <View style={styles.formContainer}>
           <Input
-            placeholder="First name"
+            placeholder="Full name"
             value={name}
             onChangeText={setName}
             autoFocus

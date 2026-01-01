@@ -83,9 +83,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <View style={styles.profileImageContainer}>
               <Image
                 source={{
-                  uri: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
+                  uri: user?.images?.[0]?.url
+                    ? user.images[0].url
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random&color=fff&size=200`
                 }}
                 style={styles.profileImage}
+                defaultSource={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random&color=fff&size=200` }}
               />
               <View style={styles.profileOnlineIndicator} />
             </View>

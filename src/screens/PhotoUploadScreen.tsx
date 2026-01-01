@@ -18,9 +18,11 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius } from '../theme/colors';
+import { BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
+import api from '../services/api';
 
 export const PhotoUploadScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
@@ -69,18 +71,71 @@ export const PhotoUploadScreen: React.FC = () => {
     }
   };
 
+  const [isUploading, setIsUploading] = useState(false);
+
+
+
   const handleSkip = () => {
     navigate('password');
   };
 
   const handleSubmit = async () => {
-    const imageObjects = photos.map(uri => ({
-      url: uri,
-      type: 'image/jpeg',
-      filename: uri.split('/').pop() || 'image.jpg',
-    }));
-    await dispatch(saveDraft({ images: imageObjects }));
-    navigate('password');
+    if (photos.length === 0) {
+      handleSkip();
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const uploadPromises = photos.map(async (uri) => {
+        // Skip if it's already a remote URL (starts with http) - though logic says we start with local
+        if (uri.startsWith('http')) {
+          // If already uploaded (maybe coming back to screen), return formatted object
+          // But current logic in state initialization maps draft images to urls.
+          // We need to preserve the full object if it's already there?
+          // Simplification: Assume all in state 'photos' are local URIs unless we handle re-entry logic better.
+          // But actually, `photos` state is initialized from `draft.images`.
+          // If they are already remote URLs, we shouldn't re-upload.
+          // We can check if `uri.startsWith('http')`.
+          return {
+            url: uri,
+            type: 'image/jpeg', // Fallback or we should store full obj in local state?
+            filename: uri.split('/').pop() || 'image.jpg'
+          };
+        }
+
+        const formData = new FormData();
+        formData.append('images', {
+          uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+          type: 'image/jpeg',
+          name: uri.split('/').pop() || 'image.jpg',
+        });
+
+        // We need to use axios directly or the api instance.
+        // Assuming api instance is imported.
+        const response = await api.post('/utility/uploadFiles', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        });
+
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          return response.data.data[0]; // The API returns an array for the uploaded file
+        }
+        return null;
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const validImages = results.filter(img => img !== null);
+
+      await dispatch(saveDraft({ images: validImages }));
+      navigate('password');
+    } catch (error) {
+      console.error('Upload failed', error);
+      Alert.alert('Upload Error', 'Failed to upload images. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const renderPhotoSlot = (index: number) => {
@@ -114,9 +169,7 @@ export const PhotoUploadScreen: React.FC = () => {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
+          <BackButton onPress={goBack} variant="default" />
           <Text style={styles.title}>Upload your photos</Text>
           <TouchableOpacity onPress={handleSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.skipText}>SKIP</Text>
@@ -156,7 +209,7 @@ export const PhotoUploadScreen: React.FC = () => {
             style={styles.actionButtonGradient}
           >
             <Text style={styles.actionButtonText}>
-              {photos.length > 0 ? 'CONTINUE' : 'SKIP'}
+              {isUploading ? 'UPLOADING...' : (photos.length > 0 ? 'CONTINUE' : 'SKIP')}
             </Text>
             {photos.length > 0 && <Text style={styles.actionButtonArrow}>→</Text>}
           </LinearGradient>

@@ -8,6 +8,7 @@ import {
   Text,
   Dimensions,
   Platform,
+  ScrollView,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -46,16 +47,16 @@ export const LookingForScreen: React.FC = () => {
       <View style={styles.gradientBackground} />
 
       <View style={styles.content}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <OptionsList
-          title="What are you looking for"
-          subtitle="Select one"
-          options={LOOKING_FOR_OPTIONS}
-          selected={selected}
-          onSelect={setSelected}
-        />
+        <BackButton onPress={goBack} variant="default" style={{ marginBottom: 20 }} />
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <OptionsList
+            title="What are you looking for"
+            subtitle="Select one"
+            options={LOOKING_FOR_OPTIONS}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        </ScrollView>
 
         <TouchableOpacity
           style={[styles.nextButton, !selected && styles.nextButtonDisabled]}

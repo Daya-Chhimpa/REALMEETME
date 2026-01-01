@@ -8,6 +8,7 @@ import {
   Text,
   Dimensions,
   Platform,
+  ScrollView,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -52,13 +53,15 @@ export const RelationshipStatusScreen: React.FC = () => {
 
       <View style={styles.content}>
         <BackButton onPress={goBack} variant="default" style={{ marginBottom: spacing[5] }} />
-        <OptionsList
-          title="What's your current status"
-          subtitle="Select one"
-          options={RELATIONSHIP_OPTIONS}
-          selected={selected}
-          onSelect={setSelected}
-        />
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <OptionsList
+            title="What's your current status"
+            subtitle="Select one"
+            options={RELATIONSHIP_OPTIONS}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        </ScrollView>
 
         <TouchableOpacity
           style={[styles.nextButton, !selected && styles.nextButtonDisabled]}

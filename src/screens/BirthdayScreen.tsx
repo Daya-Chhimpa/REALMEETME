@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { colors, shadows, borderRadius } from '../theme/colors';
+import { BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
@@ -116,7 +117,7 @@ const Dropdown: React.FC<DropdownProps> = ({ label, value, options, onSelect, pl
 };
 
 export const BirthdayScreen: React.FC = () => {
-  const { navigate } = useNavigation();
+  const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
@@ -145,6 +146,7 @@ export const BirthdayScreen: React.FC = () => {
 
       <View style={styles.content}>
         <View style={styles.header}>
+          <BackButton onPress={goBack} variant="default" style={{ marginBottom: 16 }} />
           <Text style={styles.title}>When's your birthday?</Text>
           <Text style={styles.subtitle}>Your age will be public</Text>
         </View>

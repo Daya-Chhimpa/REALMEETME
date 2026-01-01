@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import { colors, shadows } from '../theme/colors';
 import { GenderSelector } from '../components/GenderSelector';
+import { BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 
 export const GenderScreen: React.FC = () => {
-  const { navigate } = useNavigation();
+  const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
@@ -32,6 +33,10 @@ export const GenderScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
       <View style={styles.gradientBackground} />
+
+      <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
+        <BackButton onPress={goBack} variant="default" />
+      </View>
 
       <View style={styles.content}>
         <GenderSelector selected={selected} onSelect={setSelected} />
@@ -74,7 +79,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 20,
     paddingBottom: 20,
     justifyContent: 'space-between',
   },

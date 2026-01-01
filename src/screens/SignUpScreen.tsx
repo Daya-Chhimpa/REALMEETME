@@ -260,7 +260,7 @@ export const SignUpScreen: React.FC = () => {
               value={formData.password}
               onChangeText={text => updateFormData('password', text)}
               secureTextEntry={!showPassword}
-              rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+              rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
               onRightIconPress={() => setShowPassword(!showPassword)}
             />
             <View style={styles.passwordHints}>

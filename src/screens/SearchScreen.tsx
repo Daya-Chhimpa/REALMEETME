@@ -9,6 +9,7 @@ import {
   Switch,
   Modal,
   ScrollView,
+  FlatList,
   Dimensions,
   PanResponder,
   TextInput,
@@ -24,19 +25,7 @@ import api from '../services/api';
 
 const { width } = Dimensions.get('window');
 
-interface FilterOption {
-  id: string;
-  label: string;
-  icon: string;
-}
-
-const GENDER_OPTIONS: FilterOption[] = [
-  { id: 'women', label: 'Women', icon: '👩' },
-  { id: 'men', label: 'Men', icon: '👨' },
-];
-
 const SLIDER_WIDTH = width - spacing[6] * 2 - 70 - spacing[3] * 2; // Account for label and value
-const DISTANCE_SLIDER_WIDTH = width - spacing[6] * 2;
 
 // Custom Slider Component
 interface SliderProps {
@@ -137,21 +126,11 @@ export const SearchScreen: React.FC = () => {
   const { navigate } = useNavigation();
   const dispatch = useAppDispatch();
   const { filters } = useAppSelector(state => state.match);
-  const { user } = useAppSelector(state => state.auth);
-
-  // Initialize state from Redux or defaults
-  // Default gender: opposite of user if not set in filters yet
-  const defaultGender = user?.gender === 'Male' ? 'women' : 'men';
 
   const [ageRange, setAgeRange] = useState({ min: filters.minAge, max: filters.maxAge });
-  const [distance, setDistance] = useState(filters.distance);
-  const [selectedGender, setSelectedGender] = useState(filters.gender || defaultGender);
   const [selectedCity, setSelectedCity] = useState(filters.city);
   const [citySearch, setCitySearch] = useState('');
   const [showCityModal, setShowCityModal] = useState(false);
-  const [photosOnly, setPhotosOnly] = useState(filters.photosOnly);
-  const [verifiedOnly, setVerifiedOnly] = useState(filters.verifiedOnly);
-  const [onlineNow, setOnlineNow] = useState(filters.onlineNow);
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
   // Cities logic
@@ -167,18 +146,13 @@ export const SearchScreen: React.FC = () => {
   // Sync state with filters when they change (e.g. after loadFilters)
   useEffect(() => {
     setAgeRange({ min: filters.minAge, max: filters.maxAge });
-    setDistance(filters.distance);
-    setSelectedGender(filters.gender || defaultGender);
     setSelectedCity(filters.city);
-    setPhotosOnly(filters.photosOnly);
-    setVerifiedOnly(filters.verifiedOnly);
-    setOnlineNow(filters.onlineNow);
-  }, [filters, defaultGender]);
+  }, [filters]);
 
   const fetchCities = async () => {
     setCitiesLoading(true);
     try {
-      const response = await api.post('/cities', {});
+      const response = await api.post('/cities', { limit: 100000 });
       if (response.data?.data?.cities) {
         setCities(response.data.data.cities);
       }
@@ -190,7 +164,8 @@ export const SearchScreen: React.FC = () => {
   };
 
   const filteredCities = cities.filter(city =>
-    city.name.toLowerCase().includes(citySearch.toLowerCase())
+    city.name.toLowerCase().includes(citySearch.toLowerCase()) ||
+    (city.state && city.state.toLowerCase().includes(citySearch.toLowerCase()))
   );
 
   const handleSearch = async () => {
@@ -198,12 +173,7 @@ export const SearchScreen: React.FC = () => {
     await dispatch(updateFilters({
       minAge: ageRange.min,
       maxAge: ageRange.max,
-      distance,
-      gender: selectedGender,
       city: selectedCity,
-      photosOnly,
-      verifiedOnly,
-      onlineNow
     }));
 
     // 2. Fetch new users
@@ -219,7 +189,7 @@ export const SearchScreen: React.FC = () => {
   };
 
   const handleCitySelect = (city: any) => {
-    setSelectedCity(city.name); // Using name for now, logic might require ID if API needs ID. But matchSlice sends 'city' string.
+    setSelectedCity(city.name);
     setCitySearch('');
     setShowCityModal(false);
   };
@@ -273,40 +243,6 @@ export const SearchScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
 
-        {/* I'm Looking For */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionIcon}>🔍</Text>
-            <Text style={styles.sectionTitle}>I'm looking for</Text>
-          </View>
-          <View style={styles.optionsGrid}>
-            {GENDER_OPTIONS.map(option => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.optionCard,
-                  selectedGender === option.id && styles.optionCardActive,
-                ]}
-                onPress={() => setSelectedGender(option.id)}
-                activeOpacity={0.8}>
-                <Text style={styles.optionIcon}>{option.icon}</Text>
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    selectedGender === option.id && styles.optionLabelActive,
-                  ]}>
-                  {option.label}
-                </Text>
-                {selectedGender === option.id && (
-                  <View style={styles.checkBadge}>
-                    <Text style={styles.checkIcon}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Age Range */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -353,30 +289,6 @@ export const SearchScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Distance */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionIcon}>📍</Text>
-            <Text style={styles.sectionTitle}>Distance</Text>
-            <View style={styles.valueContainer}>
-              <Text style={styles.valueText}>{distance} km</Text>
-            </View>
-          </View>
-
-          <CustomSlider
-            value={distance}
-            min={1}
-            max={100}
-            onValueChange={setDistance}
-            sliderWidth={DISTANCE_SLIDER_WIDTH}
-          />
-
-          <View style={styles.sliderLabelsRow}>
-            <Text style={styles.sliderLabelText}>1 km</Text>
-            <Text style={styles.sliderLabelText}>100 km</Text>
-          </View>
-        </View>
-
         {/* City Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -398,77 +310,6 @@ export const SearchScreen: React.FC = () => {
             </Text>
             <Text style={styles.cityArrow}>›</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Toggles */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionIcon}>⚡</Text>
-            <Text style={styles.sectionTitle}>Filters</Text>
-          </View>
-
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleIcon}>📷</Text>
-                <View>
-                  <Text style={styles.toggleTitle}>With photos only</Text>
-                  <Text style={styles.toggleSubtitle}>Show profiles with photos</Text>
-                </View>
-              </View>
-              <Switch
-                value={photosOnly}
-                onValueChange={setPhotosOnly}
-                trackColor={{
-                  false: colors.ui.border,
-                  true: colors.brand.primaryMuted,
-                }}
-                thumbColor={photosOnly ? colors.brand.primary : colors.text.tertiary}
-              />
-            </View>
-
-            <View style={styles.toggleDivider} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleIcon}>✓</Text>
-                <View>
-                  <Text style={styles.toggleTitle}>Verified only</Text>
-                  <Text style={styles.toggleSubtitle}>Show verified profiles</Text>
-                </View>
-              </View>
-              <Switch
-                value={verifiedOnly}
-                onValueChange={setVerifiedOnly}
-                trackColor={{
-                  false: colors.ui.border,
-                  true: colors.brand.primaryMuted,
-                }}
-                thumbColor={verifiedOnly ? colors.brand.primary : colors.text.tertiary}
-              />
-            </View>
-
-            <View style={styles.toggleDivider} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleIcon}>🟢</Text>
-                <View>
-                  <Text style={styles.toggleTitle}>Online now</Text>
-                  <Text style={styles.toggleSubtitle}>Show online users only</Text>
-                </View>
-              </View>
-              <Switch
-                value={onlineNow}
-                onValueChange={setOnlineNow}
-                trackColor={{
-                  false: colors.ui.border,
-                  true: colors.accent.greenGlow,
-                }}
-                thumbColor={onlineNow ? colors.accent.green : colors.text.tertiary}
-              />
-            </View>
-          </View>
         </View>
 
         {/* Search Button */}
@@ -528,44 +369,41 @@ export const SearchScreen: React.FC = () => {
               ) : null}
             </View>
 
-            {/* Anywhere Option */}
-            <TouchableOpacity
-              style={styles.cityOption}
-              onPress={() => handleCitySelect('')}
-              activeOpacity={0.7}>
-              <Text style={styles.cityOptionIcon}>🌍</Text>
-              <Text style={styles.cityOptionText}>Anywhere in India</Text>
-              {!selectedCity && <Text style={styles.cityOptionCheck}>✓</Text>}
-            </TouchableOpacity>
+
 
             {/* City List */}
             {/* City List */}
-            <ScrollView style={styles.cityList} showsVerticalScrollIndicator={false}>
-              {citiesLoading ? (
-                <View style={{ padding: 20 }}>
-                  <ActivityIndicator size="small" color={colors.brand.primary} />
-                </View>
-              ) : (
-                <>
-                  {filteredCities.map((city, index) => (
-                    <TouchableOpacity
-                      key={city._id || index}
-                      style={styles.cityOption}
-                      onPress={() => handleCitySelect(city)}
-                      activeOpacity={0.7}>
-                      <Text style={styles.cityOptionIcon}>📍</Text>
-                      <Text style={styles.cityOptionText}>{city.name}</Text>
-                      {selectedCity === city.name && <Text style={styles.cityOptionCheck}>✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                  {filteredCities.length === 0 && (
-                    <View style={styles.noCityResult}>
-                      <Text style={styles.noCityText}>No cities found</Text>
-                    </View>
-                  )}
-                </>
-              )}
-            </ScrollView>
+            {/* City List */}
+            {citiesLoading ? (
+              <View style={{ padding: 20 }}>
+                <ActivityIndicator size="small" color={colors.brand.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={filteredCities}
+                keyExtractor={(item, index) => item._id || String(index)}
+                style={styles.cityList}
+                initialNumToRender={20}
+                maxToRenderPerBatch={20}
+                windowSize={10}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <View style={styles.noCityResult}>
+                    <Text style={styles.noCityText}>No cities found</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.cityOption}
+                    onPress={() => handleCitySelect(item)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.cityOptionIcon}>📍</Text>
+                    <Text style={styles.cityOptionText}>{item.name}</Text>
+                    {selectedCity === item.name && <Text style={styles.cityOptionCheck}>✓</Text>}
+                  </TouchableOpacity>
+                )}
+              />
+            )}
           </View>
         </View>
       </Modal>

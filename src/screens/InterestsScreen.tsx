@@ -136,9 +136,10 @@ export const InterestsScreen: React.FC = () => {
 
                 <View style={styles.footer}>
                     <TouchableOpacity
-                        style={[styles.nextButton]}
+                        style={[styles.nextButton, selectedInterests.length === 0 && { opacity: 0.5 }]}
                         onPress={handleNext}
                         activeOpacity={0.8}
+                        disabled={selectedInterests.length === 0}
                     >
                         <LinearGradient
                             colors={
@@ -151,7 +152,7 @@ export const InterestsScreen: React.FC = () => {
                             style={styles.nextButtonGradient}
                         >
                             <Text style={styles.nextButtonText}>
-                                {selectedInterests.length > 0 ? 'NEXT' : 'SKIP'}
+                                NEXT
                             </Text>
                         </LinearGradient>
                     </TouchableOpacity>

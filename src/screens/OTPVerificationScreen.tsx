@@ -121,7 +121,6 @@ export const OTPVerificationScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={styles.actionButton}
@@ -131,11 +130,12 @@ export const OTPVerificationScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, resendTimer > 0 && styles.disabledButton]}
             onPress={handleResend}
-            activeOpacity={0.7}>
-            <Text style={styles.actionButtonText}>
-              RESEND({resendTimer})
+            activeOpacity={0.7}
+            disabled={resendTimer > 0}>
+            <Text style={[styles.actionButtonText, resendTimer > 0 && styles.disabledButtonText]}>
+              {resendTimer > 0 ? `RESEND (${resendTimer})` : 'RESEND'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -211,10 +211,10 @@ const styles = StyleSheet.create({
   otpInput: {
     flex: 1,
     height: Math.max(50, SCREEN_WIDTH * 0.13),
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.background.tertiary,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.ui.borderDark,
+    borderWidth: 1.5,
+    borderColor: colors.ui.borderLight,
     fontSize: Math.min(24, SCREEN_WIDTH * 0.06),
     fontWeight: '700',
     color: colors.text.primary,
@@ -227,10 +227,10 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.background.tertiary,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.ui.borderDark,
+    borderWidth: 1.5,
+    borderColor: colors.ui.borderLight,
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
@@ -273,5 +273,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text.primary,
     letterSpacing: 1,
+  },
+  disabledButton: {
+    borderColor: colors.ui.border,
+    backgroundColor: 'rgba(50, 50, 50, 0.3)',
+  },
+  disabledButtonText: {
+    color: colors.text.tertiary,
+    opacity: 0.5,
   },
 });

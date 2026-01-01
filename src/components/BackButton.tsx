@@ -1,7 +1,7 @@
 import React from 'react';
-import {TouchableOpacity, Text, StyleSheet, ViewStyle} from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 
 interface BackButtonProps {
   onPress: () => void;
@@ -46,14 +46,15 @@ export const BackButton: React.FC<BackButtonProps> = ({
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.8}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         style={[styles.buttonWrapper, style]}>
         <LinearGradient
           colors={colors.gradient.primary as [string, string]}
           style={[
             styles.gradientButton,
-            {width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2},
+            { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
           ]}>
-          <Text style={[styles.icon, {fontSize}]}>←</Text>
+          <Text style={[styles.icon, { fontSize }]}>←</Text>
         </LinearGradient>
       </TouchableOpacity>
     );
@@ -63,17 +64,18 @@ export const BackButton: React.FC<BackButtonProps> = ({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={[
         styles.button,
         variant === 'light' && styles.buttonLight,
-        {width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2},
+        { width: buttonSize, height: buttonSize, borderRadius: buttonSize / 2 },
         style,
       ]}>
       <Text
         style={[
           styles.icon,
           variant === 'light' && styles.iconLight,
-          {fontSize},
+          { fontSize },
         ]}>
         ←
       </Text>
@@ -84,6 +86,8 @@ export const BackButton: React.FC<BackButtonProps> = ({
 const styles = StyleSheet.create({
   buttonWrapper: {
     ...shadows.sm,
+    zIndex: 999,
+    elevation: 10,
   },
   button: {
     backgroundColor: colors.ui.overlay,
@@ -92,6 +96,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.ui.border,
     ...shadows.sm,
+    zIndex: 999,
+    elevation: 10,
   },
   buttonLight: {
     backgroundColor: colors.background.tertiary,

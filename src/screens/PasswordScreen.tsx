@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { registerUser } from '../redux/slices/authSlice';
 import { registerSchema } from '../utils/validation';
 import { Toast, ToastType } from '../components/Toast';
+import { BackButton } from '../components';
 
 export const PasswordScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
@@ -27,6 +28,7 @@ export const PasswordScreen: React.FC = () => {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: ToastType }>({
     visible: false,
     message: '',
@@ -50,17 +52,13 @@ export const PasswordScreen: React.FC = () => {
         : 'Male';
 
       const finalData = {
-        mobile: registrationDraft.mobile,
-        name: registrationDraft.name || 'User',
+        mobile: registrationDraft?.mobile,
+        name: registrationDraft?.name || 'User',
         password: password,
         gender: formattedGender,
-        dob: registrationDraft.dob || '2000-01-01',
-        images: [{
-          url: "http://jj.com", // Using dummy URL as per previous placeholder, but structured as object
-          type: "image",
-          filename: "test"
-        }],
-        interests: registrationDraft.interests,
+        dob: registrationDraft?.dob || '2000-01-01',
+        images: registrationDraft?.images || [],
+        interests: registrationDraft?.interests,
       };
 
       try {
@@ -107,9 +105,9 @@ export const PasswordScreen: React.FC = () => {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
+          <View style={{ marginRight: 8, marginTop: 4 }}>
+            <BackButton onPress={goBack} variant="default" />
+          </View>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Create a secure password</Text>
             <Text style={styles.subtitle}>
@@ -124,7 +122,9 @@ export const PasswordScreen: React.FC = () => {
             placeholder="Enter password (min 6 characters)"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+            onRightIconPress={() => setShowPassword(!showPassword)}
             autoFocus
           />
           <Input
@@ -132,7 +132,9 @@ export const PasswordScreen: React.FC = () => {
             placeholder="Re-enter password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+            onRightIconPress={() => setShowPassword(!showPassword)}
           />
         </View>
 

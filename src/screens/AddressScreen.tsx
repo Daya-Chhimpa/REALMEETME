@@ -39,7 +39,7 @@ export const AddressScreen: React.FC = () => {
 
     const fetchCities = async () => {
         try {
-            const response = await api.post('/cities', {});
+            const response = await api.post('/cities', { limit: 100000 });
             if (response.data?.data?.cities) {
                 const fetchedCities = response.data.data.cities;
                 setCities(fetchedCities);

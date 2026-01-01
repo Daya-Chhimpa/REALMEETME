@@ -6,12 +6,7 @@ import { saveMatchFilters, getMatchFilters } from '../../services/storage';
 export interface MatchFilters {
     minAge: number;
     maxAge: number;
-    distance: number;
-    gender?: string; // Changed to optional/string, allowing undefined for initial state
     city: string;
-    photosOnly: boolean;
-    verifiedOnly: boolean;
-    onlineNow: boolean;
 }
 
 export interface Profile {
@@ -52,12 +47,7 @@ const initialState: MatchState = {
     filters: {
         minAge: 18,
         maxAge: 70,
-        distance: 50,
-        gender: undefined, // Let it be inferred later if not set
         city: '',
-        photosOnly: true,
-        verifiedOnly: false,
-        onlineNow: false,
     },
     isLoading: false,
     likesList: [],
@@ -111,27 +101,16 @@ export const getRandomUsers = createAsyncThunk(
             }
 
             // Determine gender to look for
-            // If filters.gender is set (explicit search), use that. 
-            // If NOT set, infer based on user gender (men -> women, women -> men).
-            let targetGender = filters.gender;
-
-            if (!targetGender) {
-                targetGender = user.gender === 'Male' ? 'women' : 'men';
-            }
-
-            // Map 'women'/'men' to API 'Female'/'Male'
-            let apiGender = 'Female';
-            if (targetGender === 'men') apiGender = 'Male';
-            else if (targetGender === 'women') apiGender = 'Female';
+            // STRICT RULE: Always look for opposite gender.
+            // If user is Male -> search Female. If user is Female -> search Male.
+            const targetGender = user.gender === 'Male' ? 'Female' : 'Male';
 
             const payload = {
-                gender: apiGender,
+                gender: targetGender,
                 minAge: filters.minAge,
                 maxAge: filters.maxAge,
                 address: filters.city || undefined,
                 matchOtherCities: true,
-                // photosOnly, verifiedOnly handled by API or client filtering?
-                // Assuming API handles basic filtering.
             };
 
             const config = {

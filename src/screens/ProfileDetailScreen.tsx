@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { colors, spacing } from '../theme/colors';
 import { Sidebar, BackButton } from '../components';
@@ -40,6 +41,7 @@ export const ProfileDetailScreen: React.FC = () => {
     lookingFor: user?.lookingFor || '',
     phone: user?.mobile || '',
     image: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
+    images: user?.images || [],
     interests: user?.interests || [],
   };
 
@@ -71,7 +73,29 @@ export const ProfileDetailScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}>
         {/* Profile Image */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: profile.image }} style={styles.profileImage} />
+          {profile.images && profile.images.length > 0 ? (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {profile.images.map((img: any, index: number) => (
+                <Image
+                  key={index}
+                  source={{ uri: img.url }}
+                  style={{ width: Dimensions.get('window').width, height: 400 }}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <Image
+              source={{ uri: profile.image }}
+              style={styles.profileImage}
+              resizeMode="cover"
+            />
+          )}
         </View>
 
         {/* Profile Info */}

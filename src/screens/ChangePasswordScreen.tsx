@@ -120,6 +120,8 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={oldPassword}
                                 onChangeText={setOldPassword}
                                 secureTextEntry={!showPassword}
+                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
 
@@ -130,7 +132,7 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
-                                rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
                                 onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
@@ -142,6 +144,8 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
                                 secureTextEntry={!showPassword}
+                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
 

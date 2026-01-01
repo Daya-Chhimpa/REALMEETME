@@ -168,7 +168,7 @@ export const ResetPasswordScreen: React.FC = () => {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
-                                rightIcon={<Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🔒'}</Text>}
+                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
                                 onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
@@ -179,7 +179,9 @@ export const ResetPasswordScreen: React.FC = () => {
                                 placeholder="Confirm new password"
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
-                                secureTextEntry
+                                secureTextEntry={!showPassword}
+                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
 
