@@ -59,6 +59,7 @@ export const PasswordScreen: React.FC = () => {
         dob: registrationDraft?.dob || '2000-01-01',
         images: registrationDraft?.images || [],
         interests: registrationDraft?.interests,
+        address: registrationDraft?.address,
       };
 
       try {

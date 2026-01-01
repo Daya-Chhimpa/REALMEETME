@@ -36,7 +36,7 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
-  const { navigate, currentScreen } = useNavigation();
+  const { navigate, currentScreen, reset } = useNavigation();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector(state => state.auth);
 
@@ -67,8 +67,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     onClose();
   };
 
-  const handleSignOut = () => {
-    dispatch(logoutUser());
+  const handleSignOut = async () => {
+    await dispatch(logoutUser());
+    reset('welcome');
     onClose();
   };
 
@@ -83,9 +84,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
             <View style={styles.profileImageContainer}>
               <Image
                 source={{
-                  uri: user?.images?.[0]?.url
-                    ? user.images[0].url
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random&color=fff&size=200`
+                  uri: user?.images?.[0]?.url || user?.profileImage ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random&color=fff&size=200`
                 }}
                 style={styles.profileImage}
                 defaultSource={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random&color=fff&size=200` }}
