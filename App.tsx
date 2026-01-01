@@ -67,33 +67,70 @@ function AppNavigator(): React.JSX.Element {
     'forgotreset'
   ];
 
+  // Define the ordered registration flow
+  const registrationFlow: Screen[] = [
+    'welcome',
+    'mobile',
+    'otp',
+    'name',
+    'gender',
+    'birthday',
+    'relationship',
+    'lookingfor',
+    'address',
+    'interests',
+    'photos',
+    'password'
+  ];
+
   // Determine the correct startup screen based on state
   useEffect(() => {
     if (isInitialized) {
       if (token) {
-        // User is logged in
-        // If currently on an auth screen, redirect to main app (matches)
         if (authScreens.includes(currentScreen)) {
           reset('matches');
         }
-        // If on a private screen (chat, profile, etc), stay there.
       } else {
-        // User is not logged in
-        // Check draft to resume registration
         const nextScreen = getRegistrationNextStep(registrationDraft);
 
-        // If the system suggests 'welcome' (start), but user is active on an entry screen, allow it.
-        // This prevents the loop: Welcome -> Click Start -> Mobile -> App Checks -> Redirect Welcome
         if (nextScreen === 'welcome') {
           if (authScreens.includes(currentScreen)) {
             return;
           }
         }
 
-        // Ensure we are on the correct screen for the draft state
-        // Only redirect if we are NOT on the expected screen
-        if (currentScreen !== nextScreen) {
-          reset(nextScreen);
+        // Check if current screen is part of the flow
+        const currentIndex = registrationFlow.indexOf(currentScreen);
+        const nextIndex = registrationFlow.indexOf(nextScreen);
+
+        // Redirect ONLY if we are trying to access a future step (ahead of what we've completed)
+        // OR if we are completely off the flow (e.g. some random screen)
+        // BUT allow visiting previous steps (currentIndex < nextIndex)
+        // If currentIndex is -1 (not in flow, e.g. login), and nextScreen is explicitly calculated, maybe we should redirect?
+        // But 'login', 'signup', 'forgot...' are valid alternative paths.
+
+        // If we are strictly in the "linear registration flow":
+        if (currentIndex !== -1 && nextIndex !== -1) {
+          // If we are ahead of where we should be, force back.
+          // If we are behind (currentIndex < nextIndex), it's fine (reviewing data).
+          if (currentIndex > nextIndex) {
+            reset(nextScreen);
+          }
+          // If equal, we are fine.
+          // If less, we are fine (editing previous steps).
+        } else {
+          // If we are not in the flow (e.g. Login screen), but Redux says we have a draft?
+          // Usually we stay on Login if user chose Login.
+          // If user is freshly opening app, currentScreen might be 'welcome' (default).
+          // If 'welcome' (index 0) and next is 'name' (index 3), we SHOULD redirect to 'name' to resume.
+          // But if user explicitly navigated to 'login', don't pull them back.
+
+          // So, only auto-redirect if currentScreen is 'welcome' or 'mobile' (early stages) AND we have advanced state?
+          // OR: rely on the fact that if user is on 'welcome', we bump them.
+
+          if (currentScreen === 'welcome' && nextScreen !== 'welcome') {
+            reset(nextScreen);
+          }
         }
       }
     }
