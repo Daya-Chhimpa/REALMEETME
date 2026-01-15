@@ -13,6 +13,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Input, BackButton } from '../components';
+import { EyeIcon, EyeOffIcon } from '../components/icons';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch } from '../redux/hooks';
 import { changePassword } from '../redux/slices/authSlice';
@@ -120,7 +121,7 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={oldPassword}
                                 onChangeText={setOldPassword}
                                 secureTextEntry={!showPassword}
-                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                rightIcon={!showPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
                                 onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
@@ -132,7 +133,7 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
-                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                rightIcon={!showPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
                                 onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>
@@ -144,7 +145,7 @@ export const ChangePasswordScreen: React.FC = () => {
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
                                 secureTextEntry={!showPassword}
-                                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                                rightIcon={!showPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
                                 onRightIconPress={() => setShowPassword(!showPassword)}
                             />
                         </View>

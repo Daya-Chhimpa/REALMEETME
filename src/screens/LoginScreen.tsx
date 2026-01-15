@@ -14,6 +14,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Input, BackButton } from '../components';
+import { EyeIcon, EyeOffIcon } from '../components/icons';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { loginUser } from '../redux/slices/authSlice';
@@ -180,7 +181,7 @@ export const LoginScreen: React.FC = () => {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+                rightIcon={!showPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
                 onRightIconPress={() => setShowPassword(!showPassword)}
               />
               <TouchableOpacity
@@ -219,47 +220,7 @@ export const LoginScreen: React.FC = () => {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <View style={styles.dividerTextContainer}>
-                <Text style={styles.dividerText}>or continue with</Text>
-              </View>
-              <View style={styles.divider} />
-            </View>
 
-            {/* Social Login Buttons */}
-            <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('google')}
-                activeOpacity={0.8}>
-                <View style={styles.socialIconContainer}>
-                  <Text style={styles.socialIcon}>G</Text>
-                </View>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('facebook')}
-                activeOpacity={0.8}>
-                <View style={[styles.socialIconContainer, styles.facebookIcon]}>
-                  <Text style={styles.socialIcon}>f</Text>
-                </View>
-                <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.socialButton}
-                onPress={() => handleSocialLogin('apple')}
-                activeOpacity={0.8}>
-                <View style={[styles.socialIconContainer, styles.appleIcon]}>
-                  <Text style={styles.socialIcon}></Text>
-                </View>
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Sign Up Link */}

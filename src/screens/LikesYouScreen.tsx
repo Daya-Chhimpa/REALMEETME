@@ -17,7 +17,7 @@ import { colors, shadows, borderRadius, typography, spacing } from '../theme/col
 import { Sidebar } from '../components/Sidebar';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { getLikesList, likeUser } from '../redux/slices/matchSlice';
+import { getLikesList, likeUser, setSelectedProfile } from '../redux/slices/matchSlice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing[4] * 3) / 2;
@@ -33,9 +33,7 @@ export const LikesYouScreen: React.FC = () => {
   }, [dispatch]);
 
   const handleUserPress = (user: any) => {
-    // Navigate to detail, passing user data or ID if route supports it
-    // navigate('profiledetail', { userId: user._id }); 
-    // Assuming simple nav for now as per original code
+    dispatch(setSelectedProfile(user));
     navigate('profiledetail');
   };
 
@@ -171,14 +169,10 @@ export const LikesYouScreen: React.FC = () => {
                       <Text style={styles.cardName}>
                         {user.name}, {user.age}
                       </Text>
-                      <View style={styles.locationRow}>
-                        <Text style={styles.locationIcon}>📍</Text>
-                        <Text style={styles.cardLocation}>
-                          {typeof user.location === 'string'
-                            ? user.location
-                            : (user.location as any)?.address || 'Unknown'}
-                        </Text>
-                      </View>
+                      <Text style={styles.cardLocation}>
+                        {(user.address as any)?.name || (typeof user.location === 'string' ? user.location : (user.location as any)?.address) || 'Unknown'}
+                      </Text>
+
                       {/* <Text style={styles.cardTime}>Liked {user.likedTime}</Text> */}
                     </View>
 
@@ -243,7 +237,7 @@ export const LikesYouScreen: React.FC = () => {
           />
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 };
 
