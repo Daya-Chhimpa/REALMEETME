@@ -57,7 +57,8 @@ export const MatchesScreen: React.FC = () => {
   const handleLike = () => {
     if (currentProfile) {
       dispatch(likeUser(currentProfile._id));
-      dispatch(nextProfile());
+      // Fetch next random user immediately after liking
+      dispatch(getRandomUsers());
     }
   };
 
@@ -234,7 +235,7 @@ export const MatchesScreen: React.FC = () => {
                     <>
                       <Text style={styles.sectionTitle}>Interests</Text>
                       <View style={[styles.infoCard, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
-                        {currentProfile.interests.map((interest, idx) => (
+                        {currentProfile.interests.map((interest: any, idx) => (
                           <View key={idx} style={{
                             backgroundColor: colors.background.primary,
                             paddingHorizontal: 12,
@@ -243,7 +244,9 @@ export const MatchesScreen: React.FC = () => {
                             borderWidth: 1,
                             borderColor: colors.ui.border
                           }}>
-                            <Text style={{ color: colors.text.secondary, fontSize: 12 }}>{interest}</Text>
+                            <Text style={{ color: colors.text.secondary, fontSize: 12 }}>
+                              {typeof interest === 'object' ? interest.name : interest}
+                            </Text>
                           </View>
                         ))}
                       </View>

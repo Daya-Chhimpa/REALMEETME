@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,132 +12,62 @@ import {
   Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import {colors, shadows, borderRadius, typography, spacing} from '../theme/colors';
-import {Sidebar} from '../components/Sidebar';
-import {useNavigation} from '../navigation/NavigationContext';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Sidebar } from '../components/Sidebar';
+import { useNavigation } from '../navigation/NavigationContext';
 
-const {width} = Dimensions.get('window');
-
-interface OnlineUser {
-  id: number;
-  name: string;
-  age: number;
-  location: string;
-  status: string;
-  image: string;
-  isOnline: boolean;
-  verified: boolean;
-  isNew?: boolean;
-}
-
-const ONLINE_USERS: OnlineUser[] = [
-  {
-    id: 1,
-    name: 'Janvi Agrawal',
-    age: 21,
-    location: 'Indore',
-    status: 'Single',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-    isNew: true,
-  },
-  {
-    id: 2,
-    name: 'Sweety',
-    age: 45,
-    location: 'Hyderabad',
-    status: 'Separated with kids',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-  },
-  {
-    id: 3,
-    name: 'Priyanka Padhy',
-    age: 34,
-    location: 'Chennai',
-    status: 'Single',
-    image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-    isNew: true,
-  },
-  {
-    id: 4,
-    name: 'Mukti',
-    age: 25,
-    location: 'Ranchi',
-    status: 'Single',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: false,
-  },
-  {
-    id: 5,
-    name: 'Divya',
-    age: 36,
-    location: 'Mumbai',
-    status: 'Married with kids',
-    image: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-    isNew: true,
-  },
-  {
-    id: 6,
-    name: 'Swathi',
-    age: 39,
-    location: 'Vijayawada',
-    status: 'Working in Sales',
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-  },
-  {
-    id: 7,
-    name: 'Deepa',
-    age: 38,
-    location: 'Mumbai',
-    status: 'Beauty Expert',
-    image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: true,
-  },
-  {
-    id: 8,
-    name: 'Dipali',
-    age: 30,
-    location: 'Jaysingpur',
-    status: 'Single',
-    image: 'https://images.unsplash.com/photo-1502323777036-f29e3972f12e?w=200&h=200&fit=crop',
-    isOnline: true,
-    verified: false,
-    isNew: true,
-  },
-];
+const { width } = Dimensions.get('window');
 
 type FilterType = 'all' | 'new' | 'online';
 
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { getNewUsers, setSelectedProfile } from '../redux/slices/matchSlice';
+
 export const NewAndOnlineScreen: React.FC = () => {
-  const {navigate} = useNavigation();
+  const { navigate } = useNavigation();
+  const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
-  const filteredUsers = ONLINE_USERS.filter(user => {
+  const { newUsers, newUsersLoading } = useAppSelector(state => state.match);
+
+  React.useEffect(() => {
+    dispatch(getNewUsers());
+  }, [dispatch]);
+
+  const mappedUsers = React.useMemo(() => {
+    return (newUsers || []).map((user: any) => ({
+      id: user._id,
+      name: user.name,
+      age: user.age || 20, // Fallback age if missing
+      // Handle various location structures: address object with name, or string
+      location: user.address?.name || user.address || (typeof user.location === 'string' ? user.location : user.location?.address) || '',
+      status: user.maritalStatus || user.lookingFor || 'Single',
+      image: user.images?.[0]?.url || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&h=800&fit=crop',
+      isOnline: user.isOnline || false,
+      verified: user.isVerified || false,
+      isNew: true,
+    }));
+  }, [newUsers]);
+
+  const filteredUsers = mappedUsers.filter(user => {
     if (activeFilter === 'new') return user.isNew;
-    if (activeFilter === 'online') return user.isOnline && !user.isNew;
+    if (activeFilter === 'online') return user.isOnline; // Simplified logic
     return true;
   });
 
-  const handleChatNow = (user: OnlineUser) => {
+  const handleChatNow = (user: any) => {
     console.log('Chat with:', user.name);
     navigate('chat');
   };
 
-  const handleUserPress = (user: OnlineUser) => {
+  const handleUserPress = (user: any) => {
     console.log('View profile:', user.name);
-    navigate('profiledetail');
+    const originalUser = newUsers.find((u: any) => u._id === user.id);
+    if (originalUser) {
+      dispatch(setSelectedProfile(originalUser));
+      navigate('profiledetail');
+    }
   };
 
   return (
@@ -184,8 +114,8 @@ export const NewAndOnlineScreen: React.FC = () => {
           {activeFilter === 'all' ? (
             <LinearGradient
               colors={colors.gradient.primary as [string, string]}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.filterTabGradient}>
               <Text style={styles.filterTabTextActive}>All</Text>
             </LinearGradient>
@@ -200,8 +130,8 @@ export const NewAndOnlineScreen: React.FC = () => {
           {activeFilter === 'new' ? (
             <LinearGradient
               colors={colors.gradient.primary as [string, string]}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.filterTabGradient}>
               <Text style={styles.filterTabTextActive}>✨ New</Text>
             </LinearGradient>
@@ -216,8 +146,8 @@ export const NewAndOnlineScreen: React.FC = () => {
           {activeFilter === 'online' ? (
             <LinearGradient
               colors={colors.gradient.primary as [string, string]}
-              start={{x: 0, y: 0}}
-              end={{x: 1, y: 0}}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={styles.filterTabGradient}>
               <Text style={styles.filterTabTextActive}>🟢 Online</Text>
             </LinearGradient>
@@ -243,7 +173,7 @@ export const NewAndOnlineScreen: React.FC = () => {
                 <TouchableOpacity
                   style={styles.avatarContainer}
                   onPress={() => handleUserPress(user)}>
-                  <Image source={{uri: user.image}} style={styles.avatar} />
+                  <Image source={{ uri: user.image }} style={styles.avatar} />
                   {user.isOnline && (
                     <View style={styles.onlineIndicator}>
                       <View style={styles.onlineIndicatorInner} />
@@ -283,8 +213,8 @@ export const NewAndOnlineScreen: React.FC = () => {
                 activeOpacity={0.8}>
                 <LinearGradient
                   colors={colors.gradient.primary as [string, string]}
-                  start={{x: 0, y: 0}}
-                  end={{x: 1, y: 0}}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
                   style={styles.chatButtonGradient}>
                   <Text style={styles.chatButtonIcon}>💬</Text>
                   <Text style={styles.chatButtonText}>Chat</Text>
@@ -473,7 +403,7 @@ const styles = StyleSheet.create({
   userCard: {
     marginBottom: spacing[4],
     borderRadius: borderRadius.xl,
-    backgroundColor: colors.background.card,
+    backgroundColor: colors.background.cardBg,
     borderWidth: 1,
     borderColor: colors.ui.border,
     overflow: 'hidden',
@@ -508,7 +438,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.background.card,
+    backgroundColor: colors.background.cardBg,
     justifyContent: 'center',
     alignItems: 'center',
   },

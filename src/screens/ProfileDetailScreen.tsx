@@ -8,155 +8,352 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Modal,
   Dimensions,
+  Modal,
+  Alert,
+  Animated,
+  Easing,
 } from 'react-native';
-import { colors, spacing } from '../theme/colors';
-import { Sidebar, BackButton } from '../components';
-import { useNavigation } from '../navigation/NavigationContext';
-import { useAppSelector } from '../redux/hooks';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { Sidebar } from '../components/Sidebar';
+import { ActionButton } from '../components/Button';
+import { BackButton } from '../components'; // Ensure BackButton is imported
+import { useNavigation } from '../navigation/NavigationContext'; // Adjust if using React Navigation hooks
+import { useAppDispatch } from '../redux/hooks';
+import { likeUser } from '../redux/slices/matchSlice';
 
-const getAge = (dateString: string) => {
-  const today = new Date();
-  const birthDate = new Date(dateString);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const m = today.getMonth() - birthDate.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
+const { width, height } = Dimensions.get('window');
+const CARD_HEIGHT = height * 0.65;
+
+const FloatingHeart = ({ onComplete, style }: { onComplete: () => void, style?: any }) => {
+  const [animation] = useState(new Animated.Value(0));
+
+  React.useEffect(() => {
+    Animated.sequence([
+      Animated.timing(animation, {
+        toValue: 1,
+        duration: 1500, // Slightly longer duration
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+    ]).start(({ finished }) => {
+      if (finished) onComplete();
+    });
+  }, []);
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -300], // Float up higher
+  });
+
+  const opacity = animation.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [1, 1, 0],
+  });
+
+  const scale = animation.interpolate({
+    inputRange: [0, 0.2, 1],
+    outputRange: [0.5, 1.5, 1], // Pulse effect
+  });
+
+  return (
+    <Animated.Text style={[styles.floatingHeart, {
+      opacity,
+      transform: [{ translateY }, { scale }]
+    }, style]}>
+      🩷
+    </Animated.Text>
+  );
 };
 
-export const ProfileDetailScreen: React.FC = () => {
-  const { goBack } = useNavigation();
-  const { user } = useAppSelector(state => state.auth);
+export const ProfileDetailScreen: React.FC = ({ route }: any) => {
+  // If route params are available, use them. Otherwise fallback (though navigation should generally pass params)
+  // Since we are using a custom navigation context, we might need to access params differently 
+  // or rely on a "selectedProfile" state in Redux. 
+  // HOWEVER, looking at NewAndOnlineScreen, it calls navigate('profiledetail'). 
+  // The current simple NavigationContext doesn't seem to robustly pass params in the 'navigate' mapped function 
+  // unless we enhanced it. 
+  // Let's assume for a moment we might need to store the "selected user" in Redux or 
+  // modify the usage in NewAndOnlineScreen to pass data via a Redux action "setSelectedProfile".
+
+  // WAIT: The user asked to "click on list item -> show home screen like view".
+  // The previous file content shows `navigate` comes from `useNavigation`.
+  // If `NavigationContext` is simple, we can't easily pass params.
+  // Best approach: Add `selectedUser` to `matchSlice` and set it before navigating.
+
+  // For this step, I will assume we update NewAndOnlineScreen to dispatch "setSelectedUser" 
+  // and here we read it. But first I need to add setSelectedUser to slice.
+  // Actually, let's look at `NewAndOnlineScreen` again. It logged 'View profile:', user.name.
+  // I will update the screen to read from Redux `state.match.selectedProfile`.
+  // I will duplicate MatchesScreen UI.
+
+  const { navigate, goBack } = useNavigation();
+  const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [hearts, setHearts] = useState<{ id: number, right: number }[]>([]);
 
-  // Fallback or explicit other profile logic could go here
-  // For now, mapping Redux user to display profile
-  const profile = {
-    name: user?.name || 'User',
-    age: user?.age || (user?.dob ? getAge(user.dob) : ''),
-    status: user?.relationshipStatus || '',
-    lookingFor: user?.lookingFor || '',
-    phone: user?.mobile || '',
-    image: user?.images?.[0]?.url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop',
-    images: user?.images || [],
-    interests: user?.interests || [],
-  };
+  // We need to fetch the selected profile from Redux. 
+  // I'll assume I'll add 'selectedProfile' to the slice in the next step or this one if I could.
+  // FOR NOW, let's use the `newUsers` and find one or assume the slice has it.
+  // Actually, better: I will update matchSlice to hold `selectedProfile`.
+  // But I can't do two files at once with meaningful logic unless I use multi_replace (I am using replace_file_content).
+  // I will write this file expecting `selectedProfile` to exist in `state.match`.
 
-  const isSelf = true; // For now assuming this is accessed via "My Profile" in sidebar
+  /* 
+   * TEMPORARY HACK: If I can't change Redux transparently yet, 
+   * I'll try to read the route params IF the navigation library supports it. 
+   * But `useNavigation` in this project seems custom. 
+   * Let's check `NavigationContext.tsx` later? No, let's just stick to Redux pattern.
+   */
+  const { selectedProfile } = useAppSelector(state => (state.match as any));
+  // Casting to any because I haven't added selectedProfile to the interface yet (I will do it next).
+
+  const currentProfile = selectedProfile;
 
   const handleSendMessage = () => {
-    console.log('Send Message to:', profile.name);
+    console.log('Send Message to:', currentProfile?.name);
+    navigate('chat');
   };
+
+  const handleSkip = () => {
+    goBack();
+  };
+
+  const handleLike = () => {
+    if (currentProfile) {
+      dispatch(likeUser(currentProfile._id));
+
+      // Trigger animation: 4 hearts sequentially
+      let count = 0;
+      const interval = setInterval(() => {
+        if (count >= 4) {
+          clearInterval(interval);
+          return;
+        }
+        const newHeart = {
+          id: Date.now() + Math.random(),
+          right: 20 + Math.random() * 30 // Random position around right side
+        };
+        setHearts(prev => [...prev, newHeart]);
+        count++;
+      }, 300);
+    }
+  };
+
+  const removeHeart = (id: number) => {
+    setHearts(prev => prev.filter(h => h.id !== id));
+  };
+
+  const handleSuperLike = () => {
+    console.log('Super Like:', currentProfile?.name);
+  };
+
+  if (!currentProfile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <BackButton onPress={goBack} variant="default" />
+        </View>
+        <View style={styles.noMoreProfiles}>
+          <Text>No profile selected</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Floating Hearts Container */}
+      <View style={styles.heartsContainer} pointerEvents="none">
+        {hearts.map(heart => (
+          <FloatingHeart
+            key={heart.id}
+            onComplete={() => removeHeart(heart.id)}
+            style={{ right: heart.right + '%' }}
+          />
+        ))}
+      </View>
+
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-      <View style={styles.gradientBackground} />
+
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={colors.gradient.dark as [string, string, string]}
+        style={styles.backgroundGradient}
+      />
 
       {/* Header */}
       <View style={styles.header}>
         <BackButton onPress={goBack} variant="default" />
-        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={styles.headerButton}
           onPress={() => setSidebarVisible(true)}>
-          <Text style={styles.menuIcon}>☰</Text>
+          <Text style={styles.headerIcon}>☰</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Profile Content */}
+      {/* Main Content - Reused from MatchesScreen */}
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        {/* Profile Image */}
-        <View style={styles.imageContainer}>
-          {profile.images && profile.images.length > 0 ? (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              style={{ width: '100%', height: '100%' }}
-            >
-              {profile.images.map((img: any, index: number) => (
-                <Image
-                  key={index}
-                  source={{ uri: img.url }}
-                  style={{ width: Dimensions.get('window').width, height: 400 }}
-                  resizeMode="cover"
-                />
-              ))}
-            </ScrollView>
-          ) : (
+
+        <View style={styles.cardContainer}>
+          <View style={styles.card}>
+            {/* Profile Image */}
             <Image
-              source={{ uri: profile.image }}
+              source={{
+                uri: currentProfile.image || currentProfile.images?.[0]?.url || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&h=800&fit=crop'
+              }}
               style={styles.profileImage}
               resizeMode="cover"
             />
-          )}
-        </View>
 
-        {/* Profile Info */}
-        <View style={styles.infoContainer}>
-          <View style={styles.nameRow}>
-            <Text style={styles.name}>{profile.name}{profile.age ? `, ${profile.age}` : ''}</Text>
+            {/* Top Badges */}
+            <View style={styles.topBadges}>
+              {currentProfile.isOnline && (
+                <View style={styles.onlineBadge}>
+                  <View style={styles.onlineDot} />
+                  <Text style={styles.onlineText}>Online</Text>
+                </View>
+              )}
+              {currentProfile.verified && (
+                <View style={styles.verifiedBadge}>
+                  <Text style={styles.verifiedIcon}>✓</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Gradient Overlay */}
+            <LinearGradient
+              colors={colors.gradient.cardOverlay as [string, string, string]}
+              style={styles.cardOverlay}
+            />
+
+            {/* Profile Info Overlay */}
+            <View style={styles.profileInfoOverlay}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{currentProfile.name}</Text>
+                <Text style={styles.age}>, {currentProfile.age}</Text>
+              </View>
+
+              {currentProfile.location && (
+                <View style={styles.locationRow}>
+                  <Text style={styles.locationIcon}>📍</Text>
+                  <Text style={styles.location}>
+                    {currentProfile.location}
+                  </Text>
+                </View>
+              )}
+
+              <Text style={styles.looking}>
+                {currentProfile.status || 'Looking for a connection'}
+              </Text>
+            </View>
           </View>
 
-          {profile.status ? <Text style={styles.status}>{profile.status}</Text> : null}
-          {profile.lookingFor ? <Text style={styles.looking}>{profile.lookingFor}</Text> : null}
-
-          {/* Bio */}
-
-
-          {/* Interests */}
-          {profile.interests.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Interests</Text>
-              <View style={styles.interestsContainer}>
-                {profile.interests.map((interest: string, index: number) => (
-                  <View key={index} style={styles.interestTag}>
-                    <Text style={styles.interestText}>{interest}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Verification */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Verification</Text>
-            <View style={styles.verificationRow}>
-              <View style={styles.verifiedBadge}>
-                <Text style={styles.verifiedIcon}>📱</Text>
-              </View>
-              <Text style={styles.verifiedText}>Mobile Number</Text>
-            </View>
-            <Text style={styles.phoneNumber}>{profile.phone}</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Action Buttons - Hide if self */}
-      {!isSelf && (
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={styles.likeButton}
-            onPress={() => console.log('Like')}
-            activeOpacity={0.8}>
-            <Text style={styles.likeIcon}>💜</Text>
-            <Text style={styles.likeText}>LIKE</Text>
-          </TouchableOpacity>
+          {/* Send Message Button */}
           <TouchableOpacity
             style={styles.sendMessageButton}
             onPress={handleSendMessage}
-            activeOpacity={0.8}>
-            <Text style={styles.sendMessageIcon}>💬</Text>
-            <Text style={styles.sendMessageText}>MESSAGE</Text>
+            activeOpacity={0.9}>
+            <LinearGradient
+              colors={colors.gradient.accent as [string, string]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.sendMessageGradient}>
+              <Text style={styles.sendMessageIcon}>💬</Text>
+              <Text style={styles.sendMessageText}>SEND MESSAGE</Text>
+            </LinearGradient>
           </TouchableOpacity>
+
+          {/* Extended Profile Info */}
+          <View style={styles.profileDetails}>
+            <Text style={styles.sectionTitle}>About</Text>
+
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Status</Text>
+                  <Text style={styles.infoValue}>{currentProfile.status || 'Single'}</Text>
+                </View>
+                <View style={styles.infoDivider} />
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>Age</Text>
+                  <Text style={styles.infoValue}>{currentProfile.age} years</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Verification Section */}
+            <Text style={styles.sectionTitle}>Verification</Text>
+            <View style={styles.verificationCard}>
+              <View style={styles.verificationRow}>
+                <View style={styles.verificationIconContainer}>
+                  <Text style={styles.verificationItemIcon}>
+                    {currentProfile.verified ? '🛡️' : '⏱️'}
+                  </Text>
+                </View>
+                <View style={styles.verificationInfo}>
+                  <Text style={styles.verificationLabel}>
+                    {currentProfile.verified ? 'Identity Verified' : 'Pending Verification'}
+                  </Text>
+                  <Text style={styles.verificationValue}>
+                    {currentProfile.verified ? 'Profile authentic' : 'Details under review'}
+                  </Text>
+                </View>
+                {currentProfile.verified && (
+                  <View style={styles.verifiedCheckmark}>
+                    <Text style={styles.checkmarkIcon}>✓</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Interests - if available */}
+            {/* Note: New Users API might not return interests in the same format or at all. Add safe check */}
+            {currentProfile.interests && Array.isArray(currentProfile.interests) && currentProfile.interests.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Interests</Text>
+                <View style={[styles.infoCard, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
+                  {currentProfile.interests.map((interest: any, idx: number) => (
+                    <View key={idx} style={{
+                      backgroundColor: colors.background.primary,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: colors.ui.border
+                    }}>
+                      <Text style={{ color: colors.text.secondary, fontSize: 12 }}>
+                        {typeof interest === 'object' ? interest.name : interest}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </View>
         </View>
-      )}
+
+      </ScrollView>
+
+      {/* Action Buttons - Fixed at Bottom */}
+      <View style={styles.actionButtonsContainer}>
+        <LinearGradient
+          colors={['transparent', colors.background.primary]}
+          style={styles.actionButtonsGradient}
+        />
+        <View style={styles.actionButtons}>
+          <ActionButton type="skip" onPress={handleSkip} size="md" />
+          <ActionButton type="superlike" onPress={handleSuperLike} size="sm" />
+          <ActionButton type="like" onPress={handleLike} size="md" />
+        </View>
+      </View>
 
       {/* Sidebar Drawer */}
       <Modal
@@ -165,7 +362,6 @@ export const ProfileDetailScreen: React.FC = () => {
         animationType="fade"
         onRequestClose={() => setSidebarVisible(false)}>
         <View style={styles.modalOverlay}>
-          {/* Sidebar content here needs to be wrapped or handled if Sidebar component expects specific props */}
           <View style={styles.sidebarContainer}>
             <Sidebar onClose={() => setSidebarVisible(false)} />
           </View>
@@ -185,226 +381,344 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
-  gradientBackground: {
+  backgroundGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.background.secondary,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.ui.borderDark,
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[4],
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.ui.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuIcon: {
+  headerIcon: {
     fontSize: 20,
     color: colors.text.primary,
   },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+  },
+
+  // Content
   content: {
     flex: 1,
   },
-  imageContainer: {
-    width: '100%',
-    height: 400,
-    backgroundColor: colors.background.cardBg,
+  scrollContent: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: 140,
+  },
+
+  // Card
+  cardContainer: {
+    marginBottom: spacing[6],
+  },
+  card: {
+    borderRadius: borderRadius.cardLarge,
+    overflow: 'hidden',
+    backgroundColor: colors.background.tertiary,
+    ...shadows.xl,
   },
   profileImage: {
     width: '100%',
-    height: '100%',
+    height: CARD_HEIGHT,
   },
-  infoContainer: {
-    padding: 24,
-  },
-  nameRow: {
+  topBadges: {
+    position: 'absolute',
+    top: spacing[4],
+    left: spacing[4],
+    right: spacing[4],
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
   },
-  name: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  locationBadge: {
+  onlineBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.cardBg,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: colors.ui.overlayDark,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.buttonPill,
+    gap: spacing[2],
   },
-  locationIcon: {
-    fontSize: 14,
-    marginRight: 4,
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.accent.green,
+    ...shadows.greenGlow,
   },
-  location: {
-    fontSize: 14,
-    fontWeight: '600',
+  onlineText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
     color: colors.text.primary,
-  },
-  status: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    marginBottom: 8,
-  },
-  looking: {
-    fontSize: 14,
-    color: colors.brand.purple,
-    fontWeight: '600',
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 12,
-  },
-  bio: {
-    fontSize: 15,
-    color: colors.text.secondary,
-    lineHeight: 22,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginRight: -8,
-  },
-  interestTag: {
-    backgroundColor: colors.brand.purple,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  interestText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  verificationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
   },
   verifiedBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.accent.green,
+    backgroundColor: colors.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    ...shadows.primaryGlow,
   },
   verifiedIcon: {
     fontSize: 16,
-  },
-  verifiedText: {
-    fontSize: 16,
-    fontWeight: '600',
     color: colors.text.primary,
+    fontWeight: typography.weight.bold,
   },
-  phoneNumber: {
+  cardOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '50%',
+  },
+  profileInfoOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: spacing[5],
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  name: {
+    fontSize: typography.size['4xl'],
+    fontWeight: typography.weight.bold,
+    color: colors.text.primary,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  age: {
+    fontSize: typography.size['3xl'],
+    fontWeight: typography.weight.normal,
+    color: colors.text.primary,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing[2],
+    gap: spacing[1],
+  },
+  locationIcon: {
     fontSize: 14,
+  },
+  location: {
+    fontSize: typography.size.base,
     color: colors.text.secondary,
-    marginLeft: 44,
+    fontWeight: typography.weight.medium,
   },
-  actionContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.ui.borderDark,
+  looking: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+    marginTop: spacing[2],
   },
-  likeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.background.cardBg,
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-    borderWidth: 2,
-    borderColor: colors.brand.purple,
-  },
-  likeIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  likeText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.brand.purple,
-    letterSpacing: 1,
-  },
+
+  // Send Message Button
   sendMessageButton: {
-    flex: 1,
+    marginTop: spacing[4],
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.accentGlow,
+  },
+  sendMessageGradient: {
     flexDirection: 'row',
-    backgroundColor: colors.brand.purple,
-    borderRadius: 12,
-    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
-    shadowColor: colors.brand.purple,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingVertical: spacing[4],
+    gap: spacing[2],
   },
   sendMessageIcon: {
-    fontSize: 20,
-    marginRight: 8,
+    fontSize: 18,
   },
   sendMessageText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.bold,
     color: colors.text.primary,
-    letterSpacing: 1,
+    letterSpacing: typography.tracking.wider,
   },
+
+  // Profile Details
+  profileDetails: {
+    marginTop: spacing[6],
+  },
+  sectionTitle: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: typography.tracking.widest,
+    marginBottom: spacing[3],
+  },
+  infoCard: {
+    backgroundColor: colors.background.tertiary,
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
+    marginBottom: spacing[5],
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: typography.size.xs,
+    color: colors.text.tertiary,
+    marginBottom: spacing[1],
+  },
+  infoValue: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+  },
+  infoDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.ui.border,
+  },
+  verificationCard: {
+    backgroundColor: colors.background.tertiary,
+    borderRadius: borderRadius.lg,
+    padding: spacing[4],
+    borderWidth: 1,
+    borderColor: colors.ui.border,
+  },
+  verificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.accent.greenGlow,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing[4],
+  },
+  verificationItemIcon: {
+    fontSize: 22,
+  },
+  verificationInfo: {
+    flex: 1,
+  },
+  verificationLabel: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing[1],
+  },
+  verificationValue: {
+    fontSize: typography.size.sm,
+    color: colors.text.tertiary,
+  },
+  verifiedCheckmark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.accent.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.greenGlow,
+  },
+  checkmarkIcon: {
+    fontSize: 14,
+    color: colors.text.primary,
+    fontWeight: typography.weight.bold,
+  },
+
+  // Action Buttons
+  actionButtonsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  actionButtonsGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 140,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: spacing[8],
+    paddingTop: spacing[4],
+    gap: spacing[5],
+  },
+
+  // Modal
   modalOverlay: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.ui.overlayDarker,
   },
   modalBackground: {
     flex: 1,
   },
   sidebarContainer: {
-    width: '75%',
-    maxWidth: 300,
+    width: '80%',
+    maxWidth: 320,
     backgroundColor: colors.background.primary,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 2,
-      height: 0,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    ...shadows.xl,
   },
+  // Missing text styles from original file?
+  noMoreProfiles: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heartsContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    justifyContent: 'flex-end',
+    // align items? no we position absolutely
+  },
+  floatingHeart: {
+    position: 'absolute',
+    bottom: 50, // Start near the bottom action buttons
+    fontSize: 40,
+    color: '#A020F0',
+    backgroundColor: 'transparent',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  }
 });
+
+// Import missing components if needed; reusing ActionButton, BackButton, Sidebar.
+import { useAppSelector } from '../redux/hooks';

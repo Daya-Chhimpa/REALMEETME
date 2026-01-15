@@ -12,6 +12,7 @@ import { colors, shadows, borderRadius, typography, spacing } from '../theme/col
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { logoutUser } from '../redux/slices/authSlice';
+import { resetMatchState } from '../redux/slices/matchSlice';
 
 interface SidebarProps {
   onClose: () => void;
@@ -32,7 +33,6 @@ const MENU_ITEMS: MenuItem[] = [
   { id: '3', screen: 'search', label: 'Search', icon: '🔍' },
   { id: '4', screen: 'likesyou', label: 'Likes You', icon: '💖', badge: 12 },
   { id: '5', screen: 'messages', label: 'Messages', icon: '💬', badge: 3 },
-  { id: '6', screen: 'visitors', label: 'Visitors', icon: '👁️' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
@@ -69,6 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
   const handleSignOut = async () => {
     await dispatch(logoutUser());
+    dispatch(resetMatchState());
     reset('welcome');
     onClose();
   };
@@ -102,22 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         </View>
 
         <Text style={styles.profileName}>{user?.name || 'User'}</Text>
-        <View style={styles.profileStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>89%</Text>
-            <Text style={styles.statLabel}>Complete</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>24</Text>
-            <Text style={styles.statLabel}>Matches</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>156</Text>
-            <Text style={styles.statLabel}>Likes</Text>
-          </View>
-        </View>
 
         {/* Premium Banner */}
         <TouchableOpacity style={styles.premiumBanner} activeOpacity={0.9} onPress={handlePremiumPress}>
