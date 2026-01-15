@@ -15,7 +15,9 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Sidebar } from '../components/Sidebar';
+import { calculateAge } from '../utils/date';
 import { ActionButton } from '../components/Button';
+import { FloatingHeart } from '../components/FloatingHeart';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { getRandomUsers, nextProfile, likeUser } from '../redux/slices/matchSlice';
@@ -28,6 +30,7 @@ export const MatchesScreen: React.FC = () => {
   const { navigate } = useNavigation();
   const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [hearts, setHearts] = useState<{ id: number, right: number }[]>([]);
 
   const { profiles, currentProfileIndex, isLoading, filters } = useAppSelector(state => state.match);
   const { user } = useAppSelector(state => state.auth);
@@ -51,7 +54,12 @@ export const MatchesScreen: React.FC = () => {
 
   const handleSkip = () => {
     console.log('Skip:', currentProfile?.name);
-    dispatch(nextProfile());
+    // Fetch next random user from API, similar to like action response
+    dispatch(getRandomUsers());
+  };
+
+  const removeHeart = (id: number) => {
+    setHearts(prev => prev.filter(h => h.id !== id));
   };
 
   const handleLike = () => {
@@ -59,6 +67,21 @@ export const MatchesScreen: React.FC = () => {
       dispatch(likeUser(currentProfile._id));
       // Fetch next random user immediately after liking
       dispatch(getRandomUsers());
+
+      // Trigger animation: 5 hearts rapidly
+      let count = 0;
+      const interval = setInterval(() => {
+        if (count >= 5) { // 5 hearts
+          clearInterval(interval);
+          return;
+        }
+        const newHeart = {
+          id: Date.now() + Math.random(),
+          right: 20 + Math.random() * 30 // Random position around right side
+        };
+        setHearts(prev => [...prev, newHeart]);
+        count++;
+      }, 100); // Fast speed (100ms gap)
     }
   };
 
@@ -68,6 +91,17 @@ export const MatchesScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Floating Hearts Container */}
+      <View style={styles.heartsContainer} pointerEvents="none">
+        {hearts.map(heart => (
+          <FloatingHeart
+            key={heart.id}
+            onComplete={() => removeHeart(heart.id)}
+            style={{ right: heart.right + '%' }}
+          />
+        ))}
+      </View>
+
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
 
       {/* Background Gradient */}
@@ -151,7 +185,7 @@ export const MatchesScreen: React.FC = () => {
                   <View style={styles.profileInfoOverlay}>
                     <View style={styles.nameRow}>
                       <Text style={styles.name}>{currentProfile.name}</Text>
-                      <Text style={styles.age}>, {currentProfile.age}</Text>
+                      <Text style={styles.age}>, {calculateAge(currentProfile.dob || currentProfile.age)}</Text>
                     </View>
 
                     {currentProfile.location && (
@@ -200,35 +234,31 @@ export const MatchesScreen: React.FC = () => {
                       <View style={styles.infoDivider} />
                       <View style={styles.infoItem}>
                         <Text style={styles.infoLabel}>Age</Text>
-                        <Text style={styles.infoValue}>{currentProfile.age} years</Text>
+                        <Text style={styles.infoValue}>{calculateAge(currentProfile.dob || currentProfile.age)} years</Text>
                       </View>
                     </View>
                   </View>
 
                   {/* Verification Section */}
-                  <Text style={styles.sectionTitle}>Verification</Text>
-                  <View style={styles.verificationCard}>
-                    <View style={styles.verificationRow}>
-                      <View style={styles.verificationIconContainer}>
-                        <Text style={styles.verificationItemIcon}>
-                          {currentProfile.isVerified ? '🛡️' : '⏱️'}
-                        </Text>
-                      </View>
-                      <View style={styles.verificationInfo}>
-                        <Text style={styles.verificationLabel}>
-                          {currentProfile.isVerified ? 'Identity Verified' : 'Pending Verification'}
-                        </Text>
-                        <Text style={styles.verificationValue}>
-                          {currentProfile.isVerified ? 'Profile authentic' : 'Details under review'}
-                        </Text>
-                      </View>
-                      {currentProfile.isVerified && (
-                        <View style={styles.verifiedCheckmark}>
-                          <Text style={styles.checkmarkIcon}>✓</Text>
+                  {currentProfile.isVerified && (
+                    <>
+                      <Text style={styles.sectionTitle}>Verification</Text>
+                      <View style={styles.verificationCard}>
+                        <View style={styles.verificationRow}>
+                          <View style={styles.verificationIconContainer}>
+                            <Text style={styles.verificationItemIcon}>🛡️</Text>
+                          </View>
+                          <View style={styles.verificationInfo}>
+                            <Text style={styles.verificationLabel}>Identity Verified</Text>
+                            <Text style={styles.verificationValue}>Profile authentic</Text>
+                          </View>
+                          <View style={styles.verifiedCheckmark}>
+                            <Text style={styles.checkmarkIcon}>✓</Text>
+                          </View>
                         </View>
-                      )}
-                    </View>
-                  </View>
+                      </View>
+                    </>
+                  )}
 
                   {/* Interests - if available */}
                   {currentProfile.interests && currentProfile.interests.length > 0 && (
@@ -657,6 +687,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.ui.overlayDarker,
+  },
+  heartsContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    justifyContent: 'flex-end',
   },
   modalBackground: {
     flex: 1,

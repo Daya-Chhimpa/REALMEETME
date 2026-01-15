@@ -32,8 +32,12 @@ export const NewAndOnlineScreen: React.FC = () => {
   const { newUsers, newUsersLoading } = useAppSelector(state => state.match);
 
   React.useEffect(() => {
-    dispatch(getNewUsers());
-  }, [dispatch]);
+    let type = "";
+    if (activeFilter === 'new') type = "new";
+    if (activeFilter === 'online') type = "online";
+
+    dispatch(getNewUsers(type));
+  }, [dispatch, activeFilter]);
 
   const mappedUsers = React.useMemo(() => {
     return (newUsers || []).map((user: any) => ({
@@ -46,15 +50,11 @@ export const NewAndOnlineScreen: React.FC = () => {
       image: user.images?.[0]?.url || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=600&h=800&fit=crop',
       isOnline: user.isOnline || false,
       verified: user.isVerified || false,
-      isNew: true,
+      isNew: true, // We assume API returns appropriate users
     }));
   }, [newUsers]);
 
-  const filteredUsers = mappedUsers.filter(user => {
-    if (activeFilter === 'new') return user.isNew;
-    if (activeFilter === 'online') return user.isOnline; // Simplified logic
-    return true;
-  });
+  const filteredUsers = mappedUsers;
 
   const handleChatNow = (user: any) => {
     console.log('Chat with:', user.name);

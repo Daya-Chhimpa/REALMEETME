@@ -17,7 +17,9 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
 import { Sidebar } from '../components/Sidebar';
+import { calculateAge } from '../utils/date';
 import { ActionButton } from '../components/Button';
+import { FloatingHeart } from '../components/FloatingHeart';
 import { BackButton } from '../components'; // Ensure BackButton is imported
 import { useNavigation } from '../navigation/NavigationContext'; // Adjust if using React Navigation hooks
 import { useAppDispatch } from '../redux/hooks';
@@ -26,46 +28,7 @@ import { likeUser } from '../redux/slices/matchSlice';
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = height * 0.65;
 
-const FloatingHeart = ({ onComplete, style }: { onComplete: () => void, style?: any }) => {
-  const [animation] = useState(new Animated.Value(0));
 
-  React.useEffect(() => {
-    Animated.sequence([
-      Animated.timing(animation, {
-        toValue: 1,
-        duration: 1500, // Slightly longer duration
-        useNativeDriver: true,
-        easing: Easing.out(Easing.ease),
-      }),
-    ]).start(({ finished }) => {
-      if (finished) onComplete();
-    });
-  }, []);
-
-  const translateY = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -300], // Float up higher
-  });
-
-  const opacity = animation.interpolate({
-    inputRange: [0, 0.7, 1],
-    outputRange: [1, 1, 0],
-  });
-
-  const scale = animation.interpolate({
-    inputRange: [0, 0.2, 1],
-    outputRange: [0.5, 1.5, 1], // Pulse effect
-  });
-
-  return (
-    <Animated.Text style={[styles.floatingHeart, {
-      opacity,
-      transform: [{ translateY }, { scale }]
-    }, style]}>
-      🩷
-    </Animated.Text>
-  );
-};
 
 export const ProfileDetailScreen: React.FC = ({ route }: any) => {
   // If route params are available, use them. Otherwise fallback (though navigation should generally pass params)
@@ -124,10 +87,10 @@ export const ProfileDetailScreen: React.FC = ({ route }: any) => {
     if (currentProfile) {
       dispatch(likeUser(currentProfile._id));
 
-      // Trigger animation: 4 hearts sequentially
+      // Trigger animation: 5 hearts sequentially
       let count = 0;
       const interval = setInterval(() => {
-        if (count >= 4) {
+        if (count >= 5) {
           clearInterval(interval);
           return;
         }
@@ -137,7 +100,7 @@ export const ProfileDetailScreen: React.FC = ({ route }: any) => {
         };
         setHearts(prev => [...prev, newHeart]);
         count++;
-      }, 300);
+      }, 100);
     }
   };
 
@@ -238,7 +201,7 @@ export const ProfileDetailScreen: React.FC = ({ route }: any) => {
             <View style={styles.profileInfoOverlay}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{currentProfile.name}</Text>
-                <Text style={styles.age}>, {currentProfile.age}</Text>
+                <Text style={styles.age}>, {calculateAge(currentProfile.dob || currentProfile.age)}</Text>
               </View>
 
               {currentProfile.location && (
@@ -284,7 +247,7 @@ export const ProfileDetailScreen: React.FC = ({ route }: any) => {
                 <View style={styles.infoDivider} />
                 <View style={styles.infoItem}>
                   <Text style={styles.infoLabel}>Age</Text>
-                  <Text style={styles.infoValue}>{currentProfile.age} years</Text>
+                  <Text style={styles.infoValue}>{calculateAge(currentProfile.dob || currentProfile.age)} years</Text>
                 </View>
               </View>
             </View>
@@ -708,16 +671,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     // align items? no we position absolutely
   },
-  floatingHeart: {
-    position: 'absolute',
-    bottom: 50, // Start near the bottom action buttons
-    fontSize: 40,
-    color: '#A020F0',
-    backgroundColor: 'transparent',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  }
+
 });
 
 // Import missing components if needed; reusing ActionButton, BackButton, Sidebar.

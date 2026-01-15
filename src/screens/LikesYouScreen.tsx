@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { FloatingHeart } from '../components/FloatingHeart';
 import { Sidebar } from '../components/Sidebar';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
@@ -26,6 +27,7 @@ export const LikesYouScreen: React.FC = () => {
   const { navigate } = useNavigation();
   const dispatch = useAppDispatch();
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [hearts, setHearts] = useState<{ id: number, right: number }[]>([]);
   const { likesList, likesLoading } = useAppSelector(state => state.match);
 
   useEffect(() => {
@@ -37,12 +39,28 @@ export const LikesYouScreen: React.FC = () => {
     navigate('profiledetail');
   };
 
+  const removeHeart = (id: number) => {
+    setHearts(prev => prev.filter(h => h.id !== id));
+  };
+
   const handleLikeBack = (userId: string) => {
     console.log('Liked back:', userId);
     dispatch(likeUser(userId));
-    // Optimistically update or re-fetch? 
-    // Usually liking back moves them to Matches.
-    // For now, let's just trigger the API.
+
+    // Trigger animation: 5 hearts rapidly
+    let count = 0;
+    const interval = setInterval(() => {
+      if (count >= 5) {
+        clearInterval(interval);
+        return;
+      }
+      const newHeart = {
+        id: Date.now() + Math.random(),
+        right: 20 + Math.random() * 30
+      };
+      setHearts(prev => [...prev, newHeart]);
+      count++;
+    }, 100);
   };
 
   const handleMessage = (userId: string) => {
@@ -59,6 +77,17 @@ export const LikesYouScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Floating Hearts Container */}
+      <View style={styles.heartsContainer} pointerEvents="none">
+        {hearts.map(heart => (
+          <FloatingHeart
+            key={heart.id}
+            onComplete={() => removeHeart(heart.id)}
+            style={{ right: heart.right + '%' }}
+          />
+        ))}
+      </View>
+
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
 
       <LinearGradient
@@ -566,6 +595,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.ui.overlayDarker,
+  },
+  heartsContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    justifyContent: 'flex-end',
   },
   modalBackground: {
     flex: 1,

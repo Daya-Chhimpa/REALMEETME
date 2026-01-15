@@ -20,7 +20,7 @@ import { colors, shadows, borderRadius, typography, spacing } from '../theme/col
 import { Sidebar } from '../components/Sidebar';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
-import { setFilters, resetFilters, getRandomUsers, updateFilters, loadFilters } from '../redux/slices/matchSlice';
+import { setFilters, resetFilters, getRandomUsers, updateFilters, loadFilters, getMatchesCount } from '../redux/slices/matchSlice';
 import api from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -125,10 +125,14 @@ const sliderStyles = StyleSheet.create({
 export const SearchScreen: React.FC = () => {
   const { navigate } = useNavigation();
   const dispatch = useAppDispatch();
-  const { filters } = useAppSelector(state => state.match);
+  const { filters, matchesCount } = useAppSelector(state => state.match);
+
+  // ... (previous code)
 
   const [ageRange, setAgeRange] = useState({ min: filters.minAge, max: filters.maxAge });
   const [selectedCity, setSelectedCity] = useState(filters.city);
+  const [selectedCityId, setSelectedCityId] = useState(filters.cityId);
+  const [matchOtherCities, setMatchOtherCities] = useState(filters.matchOtherCities ?? true); // Default to true as requested "enable all filters"
   const [citySearch, setCitySearch] = useState('');
   const [showCityModal, setShowCityModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -147,7 +151,10 @@ export const SearchScreen: React.FC = () => {
   useEffect(() => {
     setAgeRange({ min: filters.minAge, max: filters.maxAge });
     setSelectedCity(filters.city);
-  }, [filters]);
+    setSelectedCityId(filters.cityId);
+    setMatchOtherCities(filters.matchOtherCities ?? true);
+    dispatch(getMatchesCount());
+  }, [filters, dispatch]);
 
   const fetchCities = async () => {
     setCitiesLoading(true);
@@ -174,6 +181,8 @@ export const SearchScreen: React.FC = () => {
       minAge: ageRange.min,
       maxAge: ageRange.max,
       city: selectedCity,
+      cityId: selectedCityId,
+      matchOtherCities: matchOtherCities,
     }));
 
     // 2. Fetch new users
@@ -190,6 +199,7 @@ export const SearchScreen: React.FC = () => {
 
   const handleCitySelect = (city: any) => {
     setSelectedCity(city.name);
+    setSelectedCityId(city._id);
     setCitySearch('');
     setShowCityModal(false);
   };
@@ -295,7 +305,7 @@ export const SearchScreen: React.FC = () => {
             <Text style={styles.sectionIcon}>🏙️</Text>
             <Text style={styles.sectionTitle}>City</Text>
             {selectedCity ? (
-              <TouchableOpacity onPress={() => setSelectedCity('')}>
+              <TouchableOpacity onPress={() => { setSelectedCity(''); setSelectedCityId(''); }}>
                 <Text style={styles.clearText}>Clear</Text>
               </TouchableOpacity>
             ) : null}
@@ -310,6 +320,28 @@ export const SearchScreen: React.FC = () => {
             </Text>
             <Text style={styles.cityArrow}>›</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Match Other Cities Toggle */}
+        <View style={styles.section}>
+          <View style={styles.toggleCard}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleIcon}>🌍</Text>
+                <View>
+                  <Text style={styles.toggleTitle}>Match other cities</Text>
+                  <Text style={styles.toggleSubtitle}>Include people from nearby/other cities</Text>
+                </View>
+              </View>
+              <Switch
+                trackColor={{ false: colors.ui.border, true: colors.brand.primary }}
+                thumbColor={colors.text.primary}
+                ios_backgroundColor={colors.ui.border}
+                onValueChange={setMatchOtherCities}
+                value={matchOtherCities}
+              />
+            </View>
+          </View>
         </View>
 
         {/* Search Button */}
@@ -330,7 +362,7 @@ export const SearchScreen: React.FC = () => {
         {/* Results Info */}
         <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>
-            <Text style={styles.resultsHighlight}>2,847</Text> people match your criteria
+            <Text style={styles.resultsHighlight}>{matchesCount != null ? matchesCount.toLocaleString() : 0}</Text> people match your criteria
           </Text>
         </View>
       </ScrollView>

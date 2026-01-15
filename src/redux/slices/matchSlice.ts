@@ -3,10 +3,14 @@ import api from '../../services/api';
 import { RootState } from '../store';
 import { saveMatchFilters, getMatchFilters } from '../../services/storage';
 
+// ... (previous imports)
+
 export interface MatchFilters {
     minAge: number;
     maxAge: number;
     city: string;
+    cityId?: string; // Store the ID of the selected city
+    matchOtherCities?: boolean; // Toggle for matching other cities
 }
 
 export interface Profile {
@@ -41,6 +45,7 @@ interface MatchState {
     newUsers: Profile[];
     newUsersLoading: boolean;
     selectedProfile: Profile | null;
+    matchesCount: number;
     error: string | null;
 }
 
@@ -51,6 +56,8 @@ const initialState: MatchState = {
         minAge: 18,
         maxAge: 70,
         city: '',
+        cityId: '',
+        matchOtherCities: true,
     },
     isLoading: false,
     likesList: [],
@@ -58,6 +65,7 @@ const initialState: MatchState = {
     newUsers: [],
     newUsersLoading: false,
     selectedProfile: null,
+    matchesCount: 0,
     error: null,
 };
 
@@ -81,10 +89,8 @@ export const updateFilters = createAsyncThunk(
             const currentFilters = state.match.filters;
             const updatedFilters = { ...currentFilters, ...newFilters };
 
-            // Dispatch update to store
             dispatch(matchSlice.actions.setFilters(newFilters));
 
-            // Save to storage
             await saveMatchFilters(updatedFilters);
 
             return updatedFilters;
@@ -106,21 +112,15 @@ export const getRandomUsers = createAsyncThunk(
                 return rejectWithValue('User not authenticated');
             }
 
-            // Determine gender to look for
-            // STRICT RULE: Send the USER'S gender.
-            // The API handles finding the opposite gender automatically.
             const userGender = user.gender || 'Male';
+            const targetAddress = filters.cityId || user.address;
 
-            // Pass the USER'S address ID as the 'address' parameter to find matches nearby
-            // If the user has a specific city filter set (filters.city), use that instead.
-            // Otherwise, default to their own address ID.
-            // const targetAddress = filters.city || user.address;
             const payload = {
                 userGender: userGender,
-                address: "", // targetAddress
-                // minAge: filters.minAge,
-                // maxAge: filters.maxAge,
-                // matchOtherCities: true,
+                address: targetAddress,
+                matchOtherCities: filters.matchOtherCities,
+                minAge: filters.minAge,
+                maxAge: filters.maxAge,
             };
 
             const config = {
@@ -142,7 +142,7 @@ export const getRandomUsers = createAsyncThunk(
 
 export const getNewUsers = createAsyncThunk(
     'match/getNewUsers',
-    async (_, { getState, rejectWithValue }) => {
+    async (type: string = "", { getState, rejectWithValue }) => {
         try {
             const state = getState() as RootState;
             const { user, token } = state.auth;
@@ -158,9 +158,12 @@ export const getNewUsers = createAsyncThunk(
                 },
             };
 
-            // Using empty address as requested
+            const userGender = user.gender || 'Male';
+
             const payload = {
-                address: ""
+                address: "",
+                userGender: userGender,
+                type: type
             };
 
             const response = await api.post('/user/new', payload, config);
@@ -225,6 +228,46 @@ export const getLikesList = createAsyncThunk(
     }
 );
 
+export const getMatchesCount = createAsyncThunk(
+    'match/getMatchesCount',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const state = getState() as RootState;
+            const { filters } = state.match;
+            const { user, token } = state.auth;
+
+            if (!user || !user._id) {
+                return rejectWithValue('User not authenticated');
+            }
+
+            const userGender = user.gender || 'Male';
+            const targetAddress = filters.cityId || user.address;
+
+            const payload = {
+                userGender: userGender,
+                address: targetAddress,
+                matchOtherCities: filters.matchOtherCities,
+                minAge: filters.minAge,
+                maxAge: filters.maxAge,
+            };
+
+            const config = {
+                headers: {
+                    userid: user._id,
+                    Authorization: `Bearer ${token}`,
+                },
+            };
+
+            const response = await api.post('/matches/count', payload, config);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(
+                error.response?.data?.message || 'Failed to fetch matches count',
+            );
+        }
+    }
+);
+
 const matchSlice = createSlice({
     name: 'match',
     initialState,
@@ -233,9 +276,8 @@ const matchSlice = createSlice({
             state.filters = { ...state.filters, ...action.payload };
         },
         resetFilters: (state) => {
-            // Reset to default internal state, gender becomes undefined again
             state.filters = initialState.filters;
-            saveMatchFilters(initialState.filters); // Fire and forget
+            saveMatchFilters(initialState.filters);
         },
         nextProfile: (state) => {
             if (state.currentProfileIndex < state.profiles.length - 1) {
@@ -255,20 +297,23 @@ const matchSlice = createSlice({
         }
     },
     extraReducers: (builder) => {
-        // Reset match state when auth logout is fulfilled
-        builder.addCase('auth/logout/fulfilled', (state) => {
-            // We can't type check this string action easily without importing the exact thunk type or using build.addCase with the thunk.
-            // But simpler to just handle it if imported, or dispatch resetMatchState from the logout flow component.
-            // Actually, best practice: handle the imported logoutUser.fulfilled action if possible, 
-            // but to avoid circular deps, we can just export the reset action and dispatch it manually or use extraReducers with a string if we are lazy.
-            // Let's rely on importing the logout action or just adding a listener if we can. 
-            // Ideally: The user wants it fixed. Let's add the reducer first.
-        });
+        // ... (existing cases)
 
         builder
+            .addCase(getMatchesCount.fulfilled, (state, action) => {
+                if (action.payload?.data?.count !== undefined) {
+                    state.matchesCount = action.payload.data.count;
+                }
+            })
+
             .addCase(loadFilters.fulfilled, (state, action) => {
+                // ...
                 if (action.payload) {
-                    state.filters = { ...state.filters, ...action.payload };
+                    state.filters = {
+                        ...state.filters,
+                        ...action.payload,
+                        matchOtherCities: action.payload.matchOtherCities ?? true
+                    };
                 }
             })
             .addCase(getRandomUsers.pending, (state) => {
