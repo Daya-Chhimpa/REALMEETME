@@ -12,6 +12,7 @@ import {
     Platform,
     ActivityIndicator,
     Modal,
+    Animated,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
@@ -20,6 +21,13 @@ import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 import api from '../services/api';
+
+// Custom decorative icon
+const MapDecor: React.FC = () => (
+    <View style={styles.mapDecorContainer}>
+        <Text style={styles.mapDecorIcon}>🗺️</Text>
+    </View>
+);
 
 export const AddressScreen: React.FC = () => {
     const { navigate, goBack } = useNavigation();
@@ -33,8 +41,25 @@ export const AddressScreen: React.FC = () => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    // Animation values
+    const fadeAnim = React.useRef(new Animated.Value(0)).current;
+    const slideAnim = React.useRef(new Animated.Value(50)).current;
+
     useEffect(() => {
         fetchCities();
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.spring(slideAnim, {
+                toValue: 0,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            })
+        ]).start();
     }, []);
 
     const fetchCities = async () => {
@@ -70,7 +95,8 @@ export const AddressScreen: React.FC = () => {
     };
 
     const filteredCities = cities.filter(city =>
-        city.name.toLowerCase().includes(searchText.toLowerCase())
+        city.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        (city.state && city.state.toLowerCase().includes(searchText.toLowerCase()))
     );
 
     const handleSelectCity = (city: any) => {
@@ -96,32 +122,47 @@ export const AddressScreen: React.FC = () => {
                 style={styles.backgroundGradient}
             />
 
-            <View style={styles.content}>
+            {/* Decorative Background */}
+            <MapDecor />
+
+            <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                 <View style={styles.header}>
                     <BackButton onPress={goBack} variant="default" />
-                    <Text style={styles.stepIndicator}>Step 6 of 9</Text>
+                    <View style={styles.stepBadge}>
+                        <Text style={styles.stepText}>6 / 9</Text>
+                    </View>
                 </View>
 
                 <View style={styles.titleContainer}>
-                    <Text style={styles.title}>Where do you live?</Text>
-                    <Text style={styles.subtitle}>Select your city or region to find matches near you.</Text>
+                    <Text style={styles.title}>Find your vibe 🌍</Text>
+                    <Text style={styles.subtitle}>
+                        Connect with people near you by selecting your city.
+                    </Text>
                 </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>Address / Location</Text>
-
-                    {/* Trigger Button */}
-                    <TouchableOpacity
-                        style={styles.triggerButton}
-                        onPress={() => setIsModalVisible(true)}
-                        activeOpacity={0.8}
+                <TouchableOpacity
+                    style={styles.searchTrigger}
+                    onPress={() => setIsModalVisible(true)}
+                    activeOpacity={0.9}
+                >
+                    <LinearGradient
+                        colors={[colors.background.tertiary, colors.ui.overlay]}
+                        style={styles.searchTriggerGradient}
                     >
-                        <Text style={[styles.triggerText, !selectedCityName && styles.placeholderText]}>
-                            {selectedCityName || 'Select your city...'}
-                        </Text>
-                        <Text style={styles.triggerIcon}>▼</Text>
-                    </TouchableOpacity>
-                </View>
+                        <View style={styles.searchIconContainer}>
+                            <Text style={styles.searchPreIcon}>📍</Text>
+                        </View>
+                        <View style={styles.searchTextContainer}>
+                            <Text style={styles.searchLabel}>Current Location</Text>
+                            <Text style={[styles.searchValue, !selectedCityName && styles.placeholderValue]}>
+                                {selectedCityName || 'Select City...'}
+                            </Text>
+                        </View>
+                        <View style={styles.searchArrowContainer}>
+                            <Text style={styles.searchArrow}>→</Text>
+                        </View>
+                    </LinearGradient>
+                </TouchableOpacity>
 
                 <View style={styles.footer}>
                     <TouchableOpacity
@@ -131,33 +172,32 @@ export const AddressScreen: React.FC = () => {
                         activeOpacity={0.8}
                     >
                         <LinearGradient
-                            colors={selectedCityId ? colors.gradient.primary as [string, string] : [colors.background.tertiary, colors.background.tertiary]}
+                            colors={selectedCityId ? colors.gradient.primary as [string, string] : [colors.ui.border, colors.ui.border]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={styles.nextButtonGradient}
                         >
-                            <Text style={[styles.nextButtonText, !selectedCityId && styles.nextButtonTextDisabled]}>
-                                CONTINUE
-                            </Text>
-                            <Text style={[styles.nextButtonArrow, !selectedCityId && styles.nextButtonTextDisabled]}>→</Text>
+                            <Text style={styles.nextButtonText}>CONTINUE</Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
-            </View>
+            </Animated.View>
 
             {/* City Selection Modal */}
+            {/* ... Modal Logic remains similar, just keeping it consistent ... */}
             <Modal
                 visible={isModalVisible}
                 animationType="slide"
                 transparent={true}
                 onRequestClose={() => setIsModalVisible(false)}
             >
+                {/* ... (Same modal content, maybe refine styles slightly in next step if needed or just keep current logic) ... */}
                 <SafeAreaView style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select City</Text>
+                            <Text style={styles.modalTitle}>Search City</Text>
                             <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
-                                <Text style={styles.closeButtonText}>Done</Text>
+                                <Text style={styles.closeButtonIcon}>✕</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -165,7 +205,7 @@ export const AddressScreen: React.FC = () => {
                             <Text style={styles.searchIcon}>🔍</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="Search city..."
+                                placeholder="Type city name..."
                                 placeholderTextColor={colors.text.tertiary}
                                 value={searchText}
                                 onChangeText={setSearchText}
@@ -174,7 +214,7 @@ export const AddressScreen: React.FC = () => {
                         </View>
 
                         {loading ? (
-                            <ActivityIndicator size="large" color={colors.brand.primary} style={{ marginTop: 20 }} />
+                            <ActivityIndicator size="large" color={colors.brand.primary} style={{ marginTop: 40 }} />
                         ) : (
                             <FlatList
                                 data={filteredCities}
@@ -184,13 +224,15 @@ export const AddressScreen: React.FC = () => {
                                         style={styles.cityItem}
                                         onPress={() => handleSelectCity(item)}
                                     >
-                                        <Text style={[
-                                            styles.cityText,
-                                            item._id === selectedCityId && styles.cityTextSelected
-                                        ]}>
-                                            {item.name}
-                                        </Text>
-                                        <Text style={styles.stateText}>{item.state}</Text>
+                                        <View style={styles.cityIconContainer}>
+                                            <Text style={styles.cityIcon}>🏙️</Text>
+                                        </View>
+                                        <View style={styles.cityInfo}>
+                                            <Text style={[styles.cityText, item._id === selectedCityId && styles.cityTextSelected]}>
+                                                {item.name}
+                                            </Text>
+                                            {item.state ? <Text style={styles.stateText}>{item.state}</Text> : null}
+                                        </View>
                                         {item._id === selectedCityId && (
                                             <Text style={styles.checkIcon}>✓</Text>
                                         )}
@@ -216,11 +258,18 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background.primary,
     },
     backgroundGradient: {
+        position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    },
+    mapDecorContainer: {
         position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
+        top: '15%',
+        alignSelf: 'center',
+        opacity: 0.1,
+        transform: [{ scale: 2 }],
+    },
+    mapDecorIcon: {
+        fontSize: 150,
+        color: colors.brand.primary,
     },
     content: {
         flex: 1,
@@ -233,189 +282,164 @@ const styles = StyleSheet.create({
         marginTop: spacing[4],
         marginBottom: spacing[6],
     },
-    stepIndicator: {
-        fontSize: typography.size.sm,
-        color: colors.text.tertiary,
-        fontWeight: typography.weight.medium,
+    stepBadge: {
+        backgroundColor: colors.ui.overlay,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    stepText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: colors.text.secondary,
     },
     titleContainer: {
-        marginBottom: spacing[8],
+        marginBottom: 40,
     },
     title: {
-        fontSize: typography.size['3xl'],
-        fontWeight: typography.weight.bold,
+        fontSize: 32,
+        fontWeight: '800',
         color: colors.text.primary,
-        marginBottom: spacing[2],
+        marginBottom: 12,
     },
     subtitle: {
-        fontSize: typography.size.lg,
-        color: colors.text.secondary,
+        fontSize: 16,
+        color: colors.text.tertiary,
         lineHeight: 24,
     },
-    inputContainer: {
-        marginBottom: 20,
+    searchTrigger: {
+        borderRadius: 16,
+        ...shadows.lg,
     },
-    label: {
-        fontSize: typography.size.sm,
-        fontWeight: typography.weight.bold,
-        color: colors.brand.primary,
-        marginBottom: spacing[2],
-        marginLeft: spacing[1],
-        letterSpacing: 1,
-    },
-    triggerButton: {
+    searchTriggerGradient: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: colors.background.tertiary,
-        borderRadius: borderRadius.md,
+        padding: 16,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: colors.ui.border,
-        paddingHorizontal: spacing[4],
-        paddingVertical: spacing[4],
-        height: 56,
     },
-    triggerText: {
-        fontSize: typography.size.lg,
+    searchIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: colors.background.tertiary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    searchPreIcon: {
+        fontSize: 24,
+    },
+    searchTextContainer: {
+        flex: 1,
+    },
+    searchLabel: {
+        fontSize: 12,
+        color: colors.text.tertiary,
+        marginBottom: 4,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    searchValue: {
+        fontSize: 18,
         color: colors.text.primary,
+        fontWeight: '600',
     },
-    placeholderText: {
+    placeholderValue: {
         color: colors.text.tertiary,
+        fontStyle: 'italic',
     },
-    triggerIcon: {
-        fontSize: 14,
-        color: colors.text.tertiary,
+    searchArrowContainer: {
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.ui.overlay,
+        borderRadius: 16,
+    },
+    searchArrow: {
+        fontSize: 16,
+        color: colors.text.secondary,
+        fontWeight: 'bold',
     },
     footer: {
         marginTop: 'auto',
-        marginBottom: spacing[8],
+        marginBottom: 40,
     },
     nextButton: {
-        borderRadius: borderRadius.button,
+        borderRadius: 28, // Pill shape
         overflow: 'hidden',
         ...shadows.primaryGlow,
     },
     nextButtonDisabled: {
+        backgroundColor: colors.ui.border,
+        opacity: 0.5,
         elevation: 0,
         shadowOpacity: 0,
-        opacity: 0.8,
     },
     nextButtonGradient: {
-        flexDirection: 'row',
-        paddingVertical: spacing[4],
-        paddingHorizontal: spacing[8],
-        alignItems: 'center',
+        height: 56,
         justifyContent: 'center',
-        gap: spacing[2],
+        alignItems: 'center',
     },
     nextButtonText: {
-        fontSize: typography.size.md,
-        fontWeight: typography.weight.bold,
+        fontSize: 16,
+        fontWeight: 'bold',
         color: colors.text.primary,
-        letterSpacing: typography.tracking.wider,
-    },
-    nextButtonTextDisabled: {
-        color: colors.text.quaternary,
-    },
-    nextButtonArrow: {
-        fontSize: typography.size.lg,
-        color: colors.text.primary,
-        fontWeight: typography.weight.bold,
+        letterSpacing: 2,
     },
 
-    // Modal Styles
-    modalContainer: {
-        flex: 1,
-        backgroundColor: colors.background.primary,
-    },
-    modalContent: {
-        flex: 1,
-        backgroundColor: colors.background.primary,
-    },
+    // Modal
+    modalContainer: { flex: 1, backgroundColor: colors.background.primary },
+    modalContent: { flex: 1 },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center', // Center title
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        justifyContent: 'space-between',
+        padding: 20,
         borderBottomWidth: 1,
         borderBottomColor: colors.ui.border,
-        position: 'relative',
     },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: colors.text.primary,
-    },
-    closeButton: {
-        position: 'absolute',
-        right: 20,
-        top: 16,
-        bottom: 16,
-        justifyContent: 'center',
-    },
-    closeButtonText: {
-        color: colors.brand.primary,
-        fontWeight: '600',
-        fontSize: 16,
-    },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.primary },
+    closeButton: { padding: 8 },
+    closeButtonIcon: { fontSize: 20, color: colors.text.secondary },
     searchBox: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.background.tertiary,
-        borderRadius: borderRadius.md,
-        margin: 16,
-        paddingHorizontal: 12,
-        height: 50,
+        margin: 20,
+        paddingHorizontal: 16,
+        height: 56,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.ui.border,
     },
-    searchIcon: {
-        fontSize: 20,
-        marginRight: 10,
-        color: colors.text.tertiary,
-    },
-    input: {
-        flex: 1,
-        color: colors.text.primary,
-        fontSize: 16,
-        height: '100%',
-    },
-    activeInput: {
-        // ... if needed
-    },
-    listContent: {
-        paddingBottom: 40,
-    },
+    searchIcon: { fontSize: 20, color: colors.text.disabled, marginRight: 12 },
+    input: { flex: 1, fontSize: 16, color: colors.text.primary, height: '100%' },
+    listContent: { paddingBottom: 40 },
     cityItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 20,
+        padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.05)',
+        borderBottomColor: colors.ui.divider,
     },
-    cityText: {
-        fontSize: 16,
-        color: colors.text.secondary,
-        marginRight: 8,
+    cityIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.ui.overlay,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
     },
-    cityTextSelected: {
-        color: colors.brand.primary,
-        fontWeight: 'bold',
-    },
-    stateText: {
-        fontSize: 14,
-        color: colors.text.tertiary,
-        flex: 1,
-    },
-    checkIcon: {
-        color: colors.brand.primary,
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    emptyText: {
-        color: colors.text.tertiary,
-        textAlign: 'center',
-        marginTop: 40,
-        fontSize: 16,
-    },
+    cityIcon: { fontSize: 18 },
+    cityInfo: { flex: 1 },
+    cityText: { fontSize: 16, color: colors.text.secondary, fontWeight: '500' },
+    cityTextSelected: { color: colors.brand.primary, fontWeight: 'bold' },
+    stateText: { fontSize: 13, color: colors.text.tertiary, marginTop: 2 },
+    checkIcon: { color: colors.brand.primary, fontSize: 18, fontWeight: 'bold' },
+    emptyText: { textAlign: 'center', marginTop: 50, color: colors.text.tertiary, fontSize: 16 },
 });

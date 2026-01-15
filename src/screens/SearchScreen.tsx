@@ -398,7 +398,10 @@ export const SearchScreen: React.FC = () => {
                     onPress={() => handleCitySelect(item)}
                     activeOpacity={0.7}>
                     <Text style={styles.cityOptionIcon}>📍</Text>
-                    <Text style={styles.cityOptionText}>{item.name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cityOptionText}>{item.name}</Text>
+                      {item.state && <Text style={{ fontSize: 12, color: colors.text.tertiary }}>{item.state}</Text>}
+                    </View>
                     {selectedCity === item.name && <Text style={styles.cityOptionCheck}>✓</Text>}
                   </TouchableOpacity>
                 )}
@@ -731,7 +734,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   cityOptionText: {
-    flex: 1,
     fontSize: typography.size.base,
     color: colors.text.primary,
   },

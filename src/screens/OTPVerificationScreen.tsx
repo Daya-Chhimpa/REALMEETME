@@ -130,11 +130,19 @@ export const OTPVerificationScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, resendTimer > 0 && styles.disabledButton]}
+            style={[
+              styles.actionButton,
+              resendTimer === 0 && { borderColor: colors.brand.primary, backgroundColor: 'rgba(255, 107, 138, 0.1)' },
+              resendTimer > 0 && styles.disabledButton
+            ]}
             onPress={handleResend}
             activeOpacity={0.7}
             disabled={resendTimer > 0}>
-            <Text style={[styles.actionButtonText, resendTimer > 0 && styles.disabledButtonText]}>
+            <Text style={[
+              styles.actionButtonText,
+              resendTimer === 0 && { color: colors.brand.primary, fontWeight: '700' },
+              resendTimer > 0 && styles.disabledButtonText
+            ]}>
               {resendTimer > 0 ? `RESEND (${resendTimer})` : 'RESEND'}
             </Text>
           </TouchableOpacity>

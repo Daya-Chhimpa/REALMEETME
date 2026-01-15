@@ -20,16 +20,16 @@ import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 
 const RELATIONSHIP_OPTIONS = [
-  { id: 'single', label: 'Single' },
-  { id: 'married', label: 'Married' },
-  { id: 'married_kids', label: 'Married with kids' },
-  { id: 'divorced', label: 'Divorced' },
-  { id: 'divorced_kids', label: 'Divorced with kids' },
-  { id: 'widowed', label: 'Widowed' },
-  { id: 'widowed_kids', label: 'Widowed with kids' },
-  { id: 'separated', label: 'Separated' },
-  { id: 'separated_kids', label: 'Separated with kids' },
-  { id: 'single_parent', label: 'Single parent' },
+  { id: 'Single', label: 'Single' },
+  { id: 'Married', label: 'Married' },
+  { id: 'Married with kids', label: 'Married with kids' },
+  { id: 'Divorced', label: 'Divorced' },
+  { id: 'Divorced with kids', label: 'Divorced with kids' },
+  { id: 'Widowed', label: 'Widowed' },
+  { id: 'Widowed with kids', label: 'Widowed with kids' },
+  { id: 'Separated', label: 'Separated' },
+  { id: 'Separated with kids', label: 'Separated with kids' },
+  { id: 'Single parent', label: 'Single parent' },
 ];
 
 export const RelationshipStatusScreen: React.FC = () => {

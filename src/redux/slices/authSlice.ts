@@ -120,7 +120,7 @@ export const registerUser = createAsyncThunk(
             // API Response: { status: true, data: { token: "...", ...user } }
             const responseData = response.data;
             const userObj = responseData.data || responseData;
-            const token = userObj.token;
+            const token = userObj.accessToken || userObj.token;
 
             if (token) {
                 await setToken(token);
@@ -379,7 +379,7 @@ const authSlice = createSlice({
                 state.isLoading = false;
                 const data = action.payload.data || action.payload;
                 state.user = data;
-                state.token = data.token;
+                state.token = data.accessToken || data.token;
                 state.registrationDraft = {}; // Clear draft on success
                 clearRegistrationDraft();
             })

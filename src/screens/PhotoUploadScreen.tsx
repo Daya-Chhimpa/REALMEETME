@@ -6,8 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-  ScrollView,
-  Modal,
+
   Image,
   Alert,
   Dimensions,
@@ -15,7 +14,7 @@ import {
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors, shadows, borderRadius } from '../theme/colors';
 import { BackButton } from '../components';
@@ -29,15 +28,63 @@ export const PhotoUploadScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
-  const [photos, setPhotos] = useState<string[]>(
-    (registrationDraft.images || []).map(img => img.url)
+  // Define the structure closer to what we need
+  interface PhotoData {
+    url: string;
+    type: string;
+    filename: string;
+  }
+
+  // Initialize with full objects if available, otherwise reconstruct or empty
+  const [photos, setPhotos] = useState<PhotoData[]>(
+    (registrationDraft.images || [])
   );
-  const [showUploadModal, setShowUploadModal] = useState(false);
+
   const [selectedSlot, setSelectedSlot] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleAddPhoto = async (source: string) => {
-    setShowUploadModal(false);
+  const uploadImage = async (uri: string, slotIndex: number) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('images', {
+        uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
+        type: 'image/jpeg',
+        name: uri.split('/').pop() || 'image.jpg',
+      });
 
+      const response = await api.post('/utility/uploadFiles', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        const uploadedImage = response.data.data[0];
+
+        // Update photos based on previous state to avoid race conditions
+        setPhotos(prevPhotos => {
+          const newPhotos = [...prevPhotos];
+          newPhotos[slotIndex] = uploadedImage;
+
+          // Dispatch inside here? Or useEffect? using prevPhotos is pure.
+          // We can dispatch outside, but we need the new array.
+          // Dispatching with the calculated newPhotos:
+          dispatch(saveDraft({ images: newPhotos.filter(p => p !== undefined && p !== null) }));
+
+          return newPhotos;
+        });
+
+      }
+    } catch (error) {
+      console.error('Upload failed', error);
+      Alert.alert('Upload Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAddPhoto = async (index: number) => {
     const options = {
       mediaType: 'photo' as const,
       quality: 0.8 as const,
@@ -46,24 +93,15 @@ export const PhotoUploadScreen: React.FC = () => {
     };
 
     try {
-      let result;
-      if (source === 'camera') {
-        result = await launchCamera(options);
-      } else if (source === 'gallery') {
-        result = await launchImageLibrary(options);
-      } else {
-        Alert.alert('Coming Soon', 'Facebook integration coming soon!');
-        return;
-      }
+      const result = await launchImageLibrary(options);
 
       if (result.didCancel) {
         console.log('User cancelled');
       } else if (result.errorCode) {
         Alert.alert('Error', result.errorMessage || 'Failed to pick image');
       } else if (result.assets && result.assets[0].uri) {
-        const newPhotos = [...photos];
-        newPhotos[selectedSlot] = result.assets[0].uri;
-        setPhotos(newPhotos);
+        // Immediately upload, passing the intended index
+        await uploadImage(result.assets[0].uri, index);
       }
     } catch (error) {
       console.error('Image picker error:', error);
@@ -71,71 +109,14 @@ export const PhotoUploadScreen: React.FC = () => {
     }
   };
 
-  const [isUploading, setIsUploading] = useState(false);
-
-
-
-  const handleSkip = () => {
-    navigate('password');
-  };
-
   const handleSubmit = async () => {
-    if (photos.length === 0) {
-      handleSkip();
+    const validPhotos = photos.filter(p => p && p.url);
+    if (validPhotos.length === 0) {
+      Alert.alert('Photo Required', 'Please upload at least one photo.');
       return;
     }
-
-    setIsUploading(true);
-    try {
-      const uploadPromises = photos.map(async (uri) => {
-        // Skip if it's already a remote URL (starts with http) - though logic says we start with local
-        if (uri.startsWith('http')) {
-          // If already uploaded (maybe coming back to screen), return formatted object
-          // But current logic in state initialization maps draft images to urls.
-          // We need to preserve the full object if it's already there?
-          // Simplification: Assume all in state 'photos' are local URIs unless we handle re-entry logic better.
-          // But actually, `photos` state is initialized from `draft.images`.
-          // If they are already remote URLs, we shouldn't re-upload.
-          // We can check if `uri.startsWith('http')`.
-          return {
-            url: uri,
-            type: 'image/jpeg', // Fallback or we should store full obj in local state?
-            filename: uri.split('/').pop() || 'image.jpg'
-          };
-        }
-
-        const formData = new FormData();
-        formData.append('images', {
-          uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-          type: 'image/jpeg',
-          name: uri.split('/').pop() || 'image.jpg',
-        });
-
-        // We need to use axios directly or the api instance.
-        // Assuming api instance is imported.
-        const response = await api.post('/utility/uploadFiles', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          }
-        });
-
-        if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          return response.data.data[0]; // The API returns an array for the uploaded file
-        }
-        return null;
-      });
-
-      const results = await Promise.all(uploadPromises);
-      const validImages = results.filter(img => img !== null);
-
-      await dispatch(saveDraft({ images: validImages }));
-      navigate('password');
-    } catch (error) {
-      console.error('Upload failed', error);
-      Alert.alert('Upload Error', 'Failed to upload images. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
+    await dispatch(saveDraft({ images: validPhotos }));
+    navigate('password');
   };
 
   const renderPhotoSlot = (index: number) => {
@@ -146,11 +127,11 @@ export const PhotoUploadScreen: React.FC = () => {
         style={styles.photoSlot}
         onPress={() => {
           setSelectedSlot(index);
-          setShowUploadModal(true);
+          handleAddPhoto(index);
         }}
         activeOpacity={0.7}>
         {hasPhoto ? (
-          <Image source={{ uri: hasPhoto }} style={styles.photoImage} />
+          <Image source={{ uri: hasPhoto.url }} style={styles.photoImage} />
         ) : (
           <Text style={styles.photoSlotIcon}>+</Text>
         )}
@@ -171,9 +152,7 @@ export const PhotoUploadScreen: React.FC = () => {
         <View style={styles.header}>
           <BackButton onPress={goBack} variant="default" />
           <Text style={styles.title}>Upload your photos</Text>
-          <TouchableOpacity onPress={handleSkip} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.skipText}>SKIP</Text>
-          </TouchableOpacity>
+
         </View>
 
         {/* Photo Grid */}
@@ -209,78 +188,14 @@ export const PhotoUploadScreen: React.FC = () => {
             style={styles.actionButtonGradient}
           >
             <Text style={styles.actionButtonText}>
-              {isUploading ? 'UPLOADING...' : (photos.length > 0 ? 'CONTINUE' : 'SKIP')}
+              {isUploading ? 'UPLOADING...' : 'CONTINUE'}
             </Text>
             {photos.length > 0 && <Text style={styles.actionButtonArrow}>→</Text>}
           </LinearGradient>
         </TouchableOpacity>
       </View>
 
-      {/* Upload Modal */}
-      <Modal
-        visible={showUploadModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowUploadModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Upload Photos</Text>
-              <TouchableOpacity
-                onPress={() => setShowUploadModal(false)}
-                style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.uploadOption}
-              onPress={() => handleAddPhoto('gallery')}
-              activeOpacity={0.7}>
-              <View style={styles.uploadOptionIcon}>
-                <Text style={styles.uploadOptionEmoji}>🖼️</Text>
-              </View>
-              <View style={styles.uploadOptionText}>
-                <Text style={styles.uploadOptionTitle}>From Gallery</Text>
-                <Text style={styles.uploadOptionSubtitle}>
-                  It's fast and easy!
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.uploadOption}
-              onPress={() => handleAddPhoto('facebook')}
-              activeOpacity={0.7}>
-              <View style={styles.uploadOptionIcon}>
-                <Text style={styles.uploadOptionEmoji}>📘</Text>
-              </View>
-              <View style={styles.uploadOptionText}>
-                <Text style={styles.uploadOptionTitle}>From Facebook</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.uploadOption}
-              onPress={() => handleAddPhoto('camera')}
-              activeOpacity={0.7}>
-              <View style={styles.uploadOptionIcon}>
-                <Text style={styles.uploadOptionEmoji}>📷</Text>
-              </View>
-              <View style={styles.uploadOptionText}>
-                <Text style={styles.uploadOptionTitle}>Take a selfie</Text>
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.modalInfoContainer}>
-              <Text style={styles.modalInfoIcon}>💡</Text>
-              <Text style={styles.modalInfoText}>
-                Upload photos to show up in matches
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal removed as per user request to use direct gallery upload */}
     </SafeAreaView>
   );
 };
@@ -395,93 +310,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text.primary,
     letterSpacing: 1,
-  },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: colors.text.primary,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.background.primary,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: colors.text.primary,
-  },
-  uploadOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  uploadOptionIcon: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  uploadOptionEmoji: {
-    fontSize: 32,
-  },
-  uploadOptionText: {
-    flex: 1,
-  },
-  uploadOptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.background.primary,
-  },
-  uploadOptionSubtitle: {
-    fontSize: 12,
-    color: '#666666',
-    marginTop: 2,
-  },
-  modalInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFA500',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-  },
-  modalInfoIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  modalInfoText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#000000',
   },
   actionButtonContainer: {
     borderRadius: 12,

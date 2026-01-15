@@ -189,7 +189,10 @@ const CityModal: React.FC<CityModalProps> = ({ visible, onSelect, onClose, selec
     }
   };
 
-  const filtered = cities.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = cities.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.state && c.state.toLowerCase().includes(search.toLowerCase()))
+  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

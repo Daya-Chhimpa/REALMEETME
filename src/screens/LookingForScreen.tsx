@@ -20,11 +20,11 @@ import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 
 const LOOKING_FOR_OPTIONS = [
-  { id: 'new_friends', label: 'New friends' },
-  { id: 'online_companion', label: 'Online companion' },
-  { id: 'dating', label: 'Dating' },
-  { id: 'serious_relationship', label: 'Serious relationship' },
-  { id: 'marriage', label: 'Marriage' },
+  { id: 'New Friend', label: 'New friends' },
+  { id: 'Online Companion', label: 'Online companion' },
+  { id: 'Dating', label: 'Dating' },
+  { id: 'Serious Relationship', label: 'Serious relationship' },
+  { id: 'Marriage', label: 'Marriage' },
 ];
 
 export const LookingForScreen: React.FC = () => {

@@ -20,6 +20,7 @@ import { registerUser } from '../redux/slices/authSlice';
 import { registerSchema } from '../utils/validation';
 import { Toast, ToastType } from '../components/Toast';
 import { BackButton } from '../components';
+import { EyeIcon, EyeOffIcon } from '../components/icons';
 
 export const PasswordScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
@@ -29,6 +30,7 @@ export const PasswordScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [toast, setToast] = useState<{ visible: boolean; message: string; type: ToastType }>({
     visible: false,
     message: '',
@@ -60,6 +62,8 @@ export const PasswordScreen: React.FC = () => {
         images: registrationDraft?.images || [],
         interests: registrationDraft?.interests,
         address: registrationDraft?.address,
+        lookingFor: registrationDraft?.lookingFor,
+        maritalStatus: registrationDraft?.relationshipStatus,
       };
 
       try {
@@ -68,10 +72,8 @@ export const PasswordScreen: React.FC = () => {
         const resultAction = await dispatch(registerUser(finalData));
         if (registerUser.fulfilled.match(resultAction)) {
           setToast({ visible: true, message: 'Registration successful!', type: 'success' });
-          // Delay navigation slightly to show toast
-          setTimeout(() => {
-            navigate('login');
-          }, 1500);
+          // Navigation handled by App.tsx state change
+
         } else {
           if (registerUser.rejected.match(resultAction)) {
             setToast({
@@ -124,7 +126,7 @@ export const PasswordScreen: React.FC = () => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
-            rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
+            rightIcon={!showPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
             onRightIconPress={() => setShowPassword(!showPassword)}
             autoFocus
           />
@@ -133,9 +135,9 @@ export const PasswordScreen: React.FC = () => {
             placeholder="Re-enter password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            secureTextEntry={!showPassword}
-            rightIcon={<Text style={{ fontSize: 20 }}>{!showPassword ? '👁️' : '🔒'}</Text>}
-            onRightIconPress={() => setShowPassword(!showPassword)}
+            secureTextEntry={!showConfirmPassword}
+            rightIcon={!showConfirmPassword ? <EyeIcon size={25} color={colors.text.tertiary} /> : <EyeOffIcon size={25} color={colors.text.tertiary} />}
+            onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
           />
         </View>
 

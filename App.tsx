@@ -87,7 +87,7 @@ function AppNavigator(): React.JSX.Element {
   useEffect(() => {
     if (isInitialized) {
       if (token) {
-        if (authScreens.includes(currentScreen)) {
+        if (authScreens.includes(currentScreen) || registrationFlow.includes(currentScreen)) {
           reset('matches');
         }
       } else {

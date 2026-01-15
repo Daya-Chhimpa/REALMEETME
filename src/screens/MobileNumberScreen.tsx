@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -20,16 +21,42 @@ import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { sendOtp, saveDraft, loadRegistrationDraft } from '../redux/slices/authSlice';
 import { sendOtpSchema } from '../utils/validation';
 
+// Custom decorative icon
+const PhoneDecor: React.FC = () => (
+  <View style={styles.decorContainer}>
+    <Text style={styles.decorIcon}>📱</Text>
+  </View>
+);
+
 export const MobileNumberScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
-  const { registrationDraft, isLoading, error } = useAppSelector(state => state.auth);
+  const { registrationDraft, isLoading } = useAppSelector(state => state.auth);
 
   const [phone, setPhone] = useState('');
-  const [validationError, setValidationError] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
+
+  // Animations
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(30)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   const showToast = (msg: string, type: ToastType) => {
     setToastMessage(msg);
@@ -45,65 +72,64 @@ export const MobileNumberScreen: React.FC = () => {
   // Set phone from draft if available
   React.useEffect(() => {
     if (registrationDraft?.mobile) {
-      setPhone(registrationDraft.mobile);
+      setPhone(registrationDraft.mobile.replace('+91', ''));
     }
   }, [registrationDraft]);
 
   const handleNext = async () => {
-    setValidationError('');
     try {
-      await sendOtpSchema.validate({ mobile: phone });
+      if (phone.length !== 10) return;
 
       const mobileWithCode = `+91${phone}`;
       const resultAction = await dispatch(sendOtp(mobileWithCode));
 
       if (sendOtp.fulfilled.match(resultAction)) {
-        showToast('OTP code sent successfully!', 'success');
+        showToast('OTP sent successfully!', 'success');
         dispatch(saveDraft({ mobile: mobileWithCode }));
-        // Delay navigation slightly so user sees the toast ? 
-        // Or just navigate. User wanted Toast on success.
-        // If we navigate immediately, the new screen covers this one. 
-        // But the previous screen is still there. 
-        // Let's assume user accepts immediate nav or valid behavior.
         setTimeout(() => navigate('otp'), 500);
       } else if (sendOtp.rejected.match(resultAction)) {
         const errorMsg = resultAction.payload as string || 'Failed to send OTP';
         showToast(errorMsg, 'error');
       }
     } catch (err: any) {
-      if (err.name === 'ValidationError') {
-        setValidationError(err.message);
-        showToast(err.message, 'error');
-      } else {
-        showToast('An unexpected error occurred', 'error');
-      }
+      showToast('An unexpected error occurred', 'error');
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-      <View style={styles.gradientBackground} />
+      <LinearGradient
+        colors={colors.gradient.dark as [string, string, string]}
+        style={styles.gradientBackground}
+      />
 
-      <View style={styles.content}>
+      <PhoneDecor />
+
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.header}>
-          <BackButton onPress={goBack} variant="default" style={{ marginRight: spacing[3] }} />
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>What's your mobile number?</Text>
-            <Text style={styles.subtitle}>
-              We'll send you a verification code
-            </Text>
+          <BackButton onPress={goBack} variant="default" />
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepText}>1 / 9</Text>
           </View>
+        </View>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Let's get started 🚀</Text>
+          <Text style={styles.subtitle}>
+            Enter your mobile number to create an account or log in.
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.phoneContainer}>
             <View style={styles.countryCode}>
+              <Text style={styles.countryFlag}>🇮🇳</Text>
               <Text style={styles.countryCodeText}>+91</Text>
             </View>
             <View style={styles.phoneInputWrapper}>
               <Input
-                placeholder="Mobile number"
+                placeholder="Mobile Number"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -112,12 +138,7 @@ export const MobileNumberScreen: React.FC = () => {
               />
             </View>
           </View>
-
-
-          {/* {validationError ? <Text style={{ color: 'red', marginTop: 5 }}>{validationError}</Text> : null}
-          {error && !validationError ? <Text style={{ color: 'red', marginTop: 5 }}>{error}</Text> : null} */}
-
-          <Text style={styles.changeLink}>Not in India? Change</Text>
+          <Text style={styles.changeLink}>We will send you a verification code.</Text>
         </View>
 
         <TouchableOpacity
@@ -131,22 +152,23 @@ export const MobileNumberScreen: React.FC = () => {
             colors={
               phone.length === 10
                 ? (colors.gradient.primary as [string, string])
-                : [colors.ui.borderDark, colors.ui.borderDark]
+                : [colors.ui.border, colors.ui.border]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.nextButtonGradient}>
-            <Text style={styles.nextButtonText}>{isLoading ? 'SENDING...' : 'NEXT'}</Text>
+            <Text style={styles.nextButtonText}>{isLoading ? 'SENDING...' : 'CONTINUE'}</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </View >
+      </Animated.View>
+
       <Toast
         visible={toastVisible}
         message={toastMessage}
         type={toastType}
         onHide={() => setToastVisible(false)}
       />
-    </SafeAreaView >
+    </SafeAreaView>
   );
 };
 
@@ -156,16 +178,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   gradientBackground: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+  },
+  decorContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.background.secondary,
+    top: '10%',
+    right: -20,
+    opacity: 0.1,
+    transform: [{ rotate: '15deg' }, { scale: 1.5 }],
+    zIndex: 0,
+  },
+  decorIcon: {
+    fontSize: 180,
+    color: colors.brand.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: SCREEN_WIDTH * 0.05,
+    paddingHorizontal: spacing[6],
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     justifyContent: 'space-between',
@@ -174,44 +203,65 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 20,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  headerTextContainer: {
-    flex: 1,
+  stepBadge: {
+    backgroundColor: colors.ui.overlay,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  stepText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text.secondary,
+  },
+  titleContainer: {
+    marginBottom: 40,
   },
   title: {
-    fontSize: Math.min(28, SCREEN_WIDTH * 0.07),
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text.tertiary,
+    lineHeight: 24,
   },
   formContainer: {
     flex: 1,
+    justifyContent: 'center',
+    marginBottom: 60,
   },
   phoneContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   countryCode: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.ui.borderDark,
+    backgroundColor: colors.background.tertiary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.ui.border,
     paddingHorizontal: 16,
     height: 56,
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
-    minWidth: 70,
+    minWidth: 90,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  countryFlag: {
+    fontSize: 20,
   },
   countryCodeText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text.primary,
   },
@@ -219,17 +269,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   changeLink: {
-    fontSize: 14,
-    color: colors.accent.lightBlue,
-    textAlign: 'right',
+    fontSize: 12,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: 8,
   },
   nextButton: {
-    borderRadius: 12,
+    borderRadius: 28,
     overflow: 'hidden',
     ...shadows.primaryGlow,
   },
   nextButtonGradient: {
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -237,11 +288,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     elevation: 0,
     shadowOpacity: 0,
+    backgroundColor: colors.ui.border,
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text.primary,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
 });
