@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,42 +6,68 @@ import {
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
-
   Image,
   Alert,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 import { launchImageLibrary } from 'react-native-image-picker';
 import LinearGradient from 'react-native-linear-gradient';
-import { colors, shadows, borderRadius } from '../theme/colors';
+import { colors, shadows, borderRadius, spacing } from '../theme/colors';
 import { BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { saveDraft } from '../redux/slices/authSlice';
 import api from '../services/api';
 
+// Structure of Photo
+interface PhotoData {
+  url: string;
+  type: string;
+  filename: string;
+}
+
+// Decorative background icon
+const PhotoDecor: React.FC = () => (
+  <View style={styles.decorContainer}>
+    <Text style={styles.decorIcon}>📸</Text>
+  </View>
+);
+
 export const PhotoUploadScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
   const { registrationDraft } = useAppSelector(state => state.auth);
 
-  // Define the structure closer to what we need
-  interface PhotoData {
-    url: string;
-    type: string;
-    filename: string;
-  }
-
-  // Initialize with full objects if available, otherwise reconstruct or empty
   const [photos, setPhotos] = useState<PhotoData[]>(
     (registrationDraft.images || [])
   );
 
   const [selectedSlot, setSelectedSlot] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   const uploadImage = async (uri: string, slotIndex: number) => {
     setIsUploading(true);
@@ -62,19 +88,12 @@ export const PhotoUploadScreen: React.FC = () => {
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         const uploadedImage = response.data.data[0];
 
-        // Update photos based on previous state to avoid race conditions
         setPhotos(prevPhotos => {
           const newPhotos = [...prevPhotos];
           newPhotos[slotIndex] = uploadedImage;
-
-          // Dispatch inside here? Or useEffect? using prevPhotos is pure.
-          // We can dispatch outside, but we need the new array.
-          // Dispatching with the calculated newPhotos:
           dispatch(saveDraft({ images: newPhotos.filter(p => p !== undefined && p !== null) }));
-
           return newPhotos;
         });
-
       }
     } catch (error) {
       console.error('Upload failed', error);
@@ -100,13 +119,22 @@ export const PhotoUploadScreen: React.FC = () => {
       } else if (result.errorCode) {
         Alert.alert('Error', result.errorMessage || 'Failed to pick image');
       } else if (result.assets && result.assets[0].uri) {
-        // Immediately upload, passing the intended index
         await uploadImage(result.assets[0].uri, index);
       }
     } catch (error) {
       console.error('Image picker error:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
+  };
+
+  const handleDeletePhoto = (index: number) => {
+    setPhotos(prevPhotos => {
+      const newPhotos = [...prevPhotos];
+      // Instead of splicing which shifts slots, set to null/empty slot
+      newPhotos[index] = null as any;
+      dispatch(saveDraft({ images: newPhotos.filter(p => p !== undefined && p !== null) }));
+      return newPhotos;
+    });
   };
 
   const handleSubmit = async () => {
@@ -122,80 +150,104 @@ export const PhotoUploadScreen: React.FC = () => {
   const renderPhotoSlot = (index: number) => {
     const hasPhoto = photos[index];
     return (
-      <TouchableOpacity
-        key={index}
-        style={styles.photoSlot}
-        onPress={() => {
-          setSelectedSlot(index);
-          handleAddPhoto(index);
-        }}
-        activeOpacity={0.7}>
-        {hasPhoto ? (
-          <Image source={{ uri: hasPhoto.url }} style={styles.photoImage} />
-        ) : (
-          <Text style={styles.photoSlotIcon}>+</Text>
+      <View key={index} style={styles.photoSlotContainer}>
+        <TouchableOpacity
+          style={[styles.photoSlot, hasPhoto && styles.photoSlotActive]}
+          onPress={() => {
+            setSelectedSlot(index);
+            handleAddPhoto(index);
+          }}
+          activeOpacity={0.7}>
+          {hasPhoto ? (
+            <Image source={{ uri: hasPhoto.url }} style={styles.photoImage} />
+          ) : (
+            <View style={styles.placeholderContainer}>
+              <Text style={styles.photoSlotIcon}>+</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        {hasPhoto && (
+          <TouchableOpacity
+            style={styles.deleteBadge}
+            onPress={() => handleDeletePhoto(index)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.deleteBadgeText}>✕</Text>
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
+
+  const hasAnyPhoto = photos.some(p => p && p.url);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-      <View style={styles.gradientBackground} />
+      <LinearGradient
+        colors={colors.gradient.dark as [string, string, string]}
+        style={styles.gradientBackground}
+      />
 
-      <View style={styles.content}>
+      <PhotoDecor />
 
-
-
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Header */}
         <View style={styles.header}>
           <BackButton onPress={goBack} variant="default" />
-          <Text style={styles.title}>Upload your photos</Text>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepText}>9 / 10</Text>
+          </View>
+        </View>
 
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Upload your photos 📸</Text>
+          <Text style={styles.subtitle}>
+            Upload photos to show up in matches. Select at least one photo.
+          </Text>
         </View>
 
         {/* Photo Grid */}
-        <View style={styles.photoGrid}>
-          {[0, 1, 2].map(renderPhotoSlot)}
-        </View>
-        <View style={styles.photoGrid}>
-          {[3, 4].map(renderPhotoSlot)}
+        <View style={styles.gridContainer}>
+          <View style={styles.photoRow}>
+            {[0, 1, 2].map(renderPhotoSlot)}
+          </View>
+          <View style={styles.photoRow}>
+            {[3, 4].map(renderPhotoSlot)}
+          </View>
         </View>
 
         {/* Info Text */}
         <View style={styles.infoContainer}>
           <Text style={styles.infoIcon}>💡</Text>
           <Text style={styles.infoText}>
-            Upload photos to show up in matches
+            Clear, high-quality photos get 3x more matches!
           </Text>
         </View>
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.actionButtonContainer}
+          style={[styles.nextButton, !hasAnyPhoto && styles.nextButtonDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.8}
+          disabled={!hasAnyPhoto || isUploading}
         >
           <LinearGradient
             colors={
-              photos.length > 0
+              hasAnyPhoto
                 ? (colors.gradient.primary as [string, string])
-                : [colors.ui.borderDark, colors.ui.borderDark]
+                : [colors.ui.border, colors.ui.border]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.actionButtonGradient}
+            style={styles.nextButtonGradient}
           >
-            <Text style={styles.actionButtonText}>
+            <Text style={styles.nextButtonText}>
               {isUploading ? 'UPLOADING...' : 'CONTINUE'}
             </Text>
-            {photos.length > 0 && <Text style={styles.actionButtonArrow}>→</Text>}
           </LinearGradient>
         </TouchableOpacity>
-      </View>
-
-      {/* Modal removed as per user request to use direct gallery upload */}
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -206,85 +258,137 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   gradientBackground: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+  },
+  decorContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.background.secondary,
+    top: '12%',
+    right: -20,
+    opacity: 0.1,
+    transform: [{ rotate: '15deg' }, { scale: 1.5 }],
+    zIndex: 0,
+  },
+  decorIcon: {
+    fontSize: 180,
+    color: colors.brand.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: SCREEN_WIDTH * 0.05,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingHorizontal: spacing[6],
+    paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    justifyContent: 'space-between',
     maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
   },
   header: {
+    marginBottom: 20,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 32,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  stepBadge: {
+    backgroundColor: colors.ui.overlay,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  backButtonText: {
-    fontSize: 28,
-    color: colors.text.primary,
+  stepText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text.secondary,
+  },
+  titleContainer: {
+    marginBottom: 24,
   },
   title: {
-    fontSize: Math.min(28, SCREEN_WIDTH * 0.07),
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.text.primary,
-    flex: 1,
-    textAlign: 'center',
+    marginBottom: 12,
   },
-  skipText: {
+  subtitle: {
     fontSize: 16,
-    fontWeight: '600',
     color: colors.text.tertiary,
+    lineHeight: 24,
   },
-  photoGrid: {
+  gridContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 16,
+    marginVertical: 16,
+  },
+  photoRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 16,
+    gap: 16,
+  },
+  photoSlotContainer: {
+    position: 'relative',
   },
   photoSlot: {
-    width: Math.min(100, SCREEN_WIDTH * 0.22),
-    height: Math.min(100, SCREEN_WIDTH * 0.22),
-    borderRadius: Math.min(50, SCREEN_WIDTH * 0.11),
-    backgroundColor: colors.background.cardBg,
+    width: (SCREEN_WIDTH - spacing[6] * 2 - 16 * 2) / 3,
+    height: 130,
+    borderRadius: 16,
+    backgroundColor: colors.background.tertiary,
     justifyContent: 'center',
-    overflow: 'hidden',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.ui.borderDark,
-    marginHorizontal: SCREEN_WIDTH * 0.02,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.ui.border,
+    borderStyle: 'dashed',
+  },
+  photoSlotActive: {
+    borderStyle: 'solid',
+    borderColor: colors.brand.primary,
+    ...shadows.primaryGlow,
+  },
+  placeholderContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   photoSlotIcon: {
-    fontSize: 40,
+    fontSize: 32,
     color: colors.text.tertiary,
+    fontWeight: '300',
   },
   photoImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
+  deleteBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.accent.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.background.primary,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  deleteBadgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFA500',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 179, 71, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.brand.secondary,
     padding: 16,
-    marginTop: 32,
     marginBottom: 24,
   },
   infoIcon: {
@@ -295,44 +399,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.brand.secondary,
+    lineHeight: 20,
   },
-  submitButton: {
-    backgroundColor: colors.ui.borderDark,
-    borderRadius: 12,
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text.primary,
-    letterSpacing: 1,
-  },
-  actionButtonContainer: {
-    borderRadius: 12,
+  nextButton: {
+    borderRadius: 28,
     overflow: 'hidden',
-    marginTop: 'auto',
     ...shadows.primaryGlow,
   },
-  actionButtonGradient: {
-    flexDirection: 'row',
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
-    alignItems: 'center',
+  nextButtonGradient: {
+    height: 56,
     justifyContent: 'center',
-    gap: 8,
+    alignItems: 'center',
   },
-  actionButtonText: {
+  nextButtonDisabled: {
+    opacity: 0.5,
+    elevation: 0,
+    shadowOpacity: 0,
+    backgroundColor: colors.ui.border,
+  },
+  nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text.primary,
-    letterSpacing: 1,
-  },
-  actionButtonArrow: {
-    fontSize: 18,
-    color: colors.text.primary,
-    fontWeight: '700',
+    letterSpacing: 2,
   },
 });

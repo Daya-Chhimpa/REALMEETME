@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-import { colors, shadows } from '../theme/colors';
+import { colors, shadows, borderRadius, spacing } from '../theme/colors';
 import { Input } from '../components/Input';
 import { useNavigation } from '../navigation/NavigationContext';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,10 +23,17 @@ import { Toast, ToastType } from '../components/Toast';
 import { BackButton } from '../components';
 import { EyeIcon, EyeOffIcon } from '../components/icons';
 
+// Decorative background icon
+const PasswordDecor: React.FC = () => (
+  <View style={styles.decorContainer}>
+    <Text style={styles.decorIcon}>🔒</Text>
+  </View>
+);
+
 export const PasswordScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
   const dispatch = useAppDispatch();
-  const { registrationDraft, isLoading, error, token } = useAppSelector(state => state.auth);
+  const { registrationDraft, isLoading, error } = useAppSelector(state => state.auth);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,6 +44,26 @@ export const PasswordScreen: React.FC = () => {
     message: '',
     type: 'success',
   });
+
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
 
   const hideToast = () => {
     setToast(prev => ({ ...prev, visible: false }));
@@ -72,8 +100,6 @@ export const PasswordScreen: React.FC = () => {
         const resultAction = await dispatch(registerUser(finalData));
         if (registerUser.fulfilled.match(resultAction)) {
           setToast({ visible: true, message: 'Registration successful!', type: 'success' });
-          // Navigation handled by App.tsx state change
-
         } else {
           if (registerUser.rejected.match(resultAction)) {
             setToast({
@@ -97,7 +123,10 @@ export const PasswordScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-      <View style={styles.gradientBackground} />
+      <LinearGradient
+        colors={colors.gradient.dark as [string, string, string]}
+        style={styles.gradientBackground}
+      />
 
       <Toast
         visible={toast.visible}
@@ -106,17 +135,21 @@ export const PasswordScreen: React.FC = () => {
         onHide={hideToast}
       />
 
-      <View style={styles.content}>
+      <PasswordDecor />
+
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.header}>
-          <View style={{ marginRight: 8, marginTop: 4 }}>
-            <BackButton onPress={goBack} variant="default" />
+          <BackButton onPress={goBack} variant="default" />
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepText}>10 / 10</Text>
           </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>Create a secure password</Text>
-            <Text style={styles.subtitle}>
-              We'll keep your profile safe and secure
-            </Text>
-          </View>
+        </View>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Create a password 🔒</Text>
+          <Text style={styles.subtitle}>
+            We'll keep your profile safe and secure
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -144,13 +177,13 @@ export const PasswordScreen: React.FC = () => {
         <TouchableOpacity
           style={[styles.nextButton, !isValid && styles.nextButtonDisabled]}
           onPress={handleNext}
-          disabled={!isValid}
+          disabled={!isValid || isLoading}
           activeOpacity={0.8}>
           <LinearGradient
             colors={
               isValid
                 ? (colors.gradient.primary as [string, string])
-                : [colors.ui.borderDark, colors.ui.borderDark]
+                : [colors.ui.border, colors.ui.border]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -158,7 +191,7 @@ export const PasswordScreen: React.FC = () => {
             <Text style={styles.nextButtonText}>{isLoading ? 'REGISTERING...' : 'COMPLETE'}</Text>
           </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -169,16 +202,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   gradientBackground: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+  },
+  decorContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.background.secondary,
+    top: '12%',
+    right: -20,
+    opacity: 0.1,
+    transform: [{ rotate: '15deg' }, { scale: 1.5 }],
+    zIndex: 0,
+  },
+  decorIcon: {
+    fontSize: 180,
+    color: colors.brand.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: SCREEN_WIDTH * 0.05,
+    paddingHorizontal: spacing[6],
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     justifyContent: 'space-between',
@@ -187,48 +227,46 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 20,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginTop: 4,
+    justifyContent: 'space-between',
   },
-  backButtonText: {
-    fontSize: 28,
-    color: colors.text.primary,
+  stepBadge: {
+    backgroundColor: colors.ui.overlay,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  headerTextContainer: {
-    flex: 1,
+  stepText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text.secondary,
+  },
+  titleContainer: {
+    marginBottom: 40,
   },
   title: {
-    fontSize: Math.min(28, SCREEN_WIDTH * 0.07),
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text.tertiary,
+    lineHeight: 24,
   },
   formContainer: {
     flex: 1,
   },
   nextButton: {
-    borderRadius: 12,
+    borderRadius: 28,
     overflow: 'hidden',
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
     ...shadows.primaryGlow,
   },
   nextButtonGradient: {
-    height: '100%',
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -236,11 +274,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     elevation: 0,
     shadowOpacity: 0,
+    backgroundColor: colors.ui.border,
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text.primary,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
 });

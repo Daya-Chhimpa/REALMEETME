@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,24 @@ import {
   TextInput,
   Dimensions,
   Platform,
+  Animated,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-import { colors } from '../theme/colors';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, shadows, borderRadius, typography, spacing } from '../theme/colors';
+import { BackButton } from '../components';
 import { useNavigation } from '../navigation/NavigationContext';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 import { verifyOtp, saveDraft, sendOtp } from '../redux/slices/authSlice';
 import { verifyOtpSchema } from '../utils/validation';
+
+// Custom decorative icon
+const KeyDecor: React.FC = () => (
+  <View style={styles.decorContainer}>
+    <Text style={styles.decorIcon}>🔑</Text>
+  </View>
+);
 
 export const OTPVerificationScreen: React.FC = () => {
   const { navigate, goBack } = useNavigation();
@@ -29,8 +39,28 @@ export const OTPVerificationScreen: React.FC = () => {
 
   const phoneNumber = registrationDraft?.mobile || '';
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, []);
+
   // Timer logic
-  React.useEffect(() => {
+  useEffect(() => {
     let interval: any;
     if (resendTimer > 0) {
       interval = setInterval(() => {
@@ -93,12 +123,21 @@ export const OTPVerificationScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-      <View style={styles.gradientBackground} />
+      <LinearGradient
+        colors={colors.gradient.dark as [string, string, string]}
+        style={styles.gradientBackground}
+      />
 
-      <View style={styles.content}>
+      <KeyDecor />
+
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Enter OTP</Text>
+          <BackButton onPress={goBack} variant="default" />
+        </View>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Enter OTP 🔑</Text>
           <Text style={styles.subtitle}>
             Please enter the verification code sent to {phoneNumber}
           </Text>
@@ -167,9 +206,15 @@ export const OTPVerificationScreen: React.FC = () => {
           onPress={handleContinue}
           activeOpacity={0.8}
           disabled={isLoading}>
-          <Text style={styles.continueButtonText}>{isLoading ? 'VERIFYING...' : 'CONTINUE'}</Text>
+          <LinearGradient
+            colors={colors.gradient.primary as [string, string]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.continueButtonGradient}>
+            <Text style={styles.continueButtonText}>{isLoading ? 'VERIFYING...' : 'CONTINUE'}</Text>
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -180,50 +225,64 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   gradientBackground: {
+    position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+  },
+  decorContainer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: colors.background.secondary,
+    top: '10%',
+    right: -20,
+    opacity: 0.1,
+    transform: [{ rotate: '-15deg' }, { scale: 1.5 }],
+    zIndex: 0,
+  },
+  decorIcon: {
+    fontSize: 180,
+    color: colors.brand.primary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: SCREEN_WIDTH * 0.05,
+    paddingHorizontal: spacing[6],
     paddingTop: Platform.OS === 'ios' ? 20 : 40,
     paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    justifyContent: 'space-between',
     maxWidth: 600,
     width: '100%',
     alignSelf: 'center',
   },
   header: {
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleContainer: {
     marginBottom: 40,
   },
   title: {
-    fontSize: Math.min(32, SCREEN_WIDTH * 0.08),
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.text.primary,
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text.tertiary,
-    lineHeight: 20,
+    lineHeight: 24,
   },
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 32,
-    gap: SCREEN_WIDTH * 0.02,
+    gap: spacing[2],
   },
   otpInput: {
     flex: 1,
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
+    height: 56,
     backgroundColor: colors.background.tertiary,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.ui.borderLight,
-    fontSize: Math.min(24, SCREEN_WIDTH * 0.06),
+    borderColor: colors.ui.border,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text.primary,
     textAlign: 'center',
@@ -236,9 +295,9 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     backgroundColor: colors.background.tertiary,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: colors.ui.borderLight,
+    borderColor: colors.ui.border,
     height: 48,
     justifyContent: 'center',
     alignItems: 'center',
@@ -246,41 +305,38 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.tertiary,
+    color: colors.text.secondary,
   },
   successContainer: {
-    backgroundColor: colors.accent.green,
-    borderRadius: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent.green,
     padding: 12,
     marginBottom: 32,
   },
   successText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text.primary,
+    color: colors.accent.green,
     textAlign: 'center',
   },
   continueButton: {
-    backgroundColor: colors.brand.primary,
-    borderRadius: 12,
-    height: Math.max(50, SCREEN_WIDTH * 0.13),
+    borderRadius: 28,
+    overflow: 'hidden',
+    marginTop: 'auto',
+    ...shadows.primaryGlow,
+  },
+  continueButtonGradient: {
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    shadowColor: colors.brand.primary,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   continueButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text.primary,
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   disabledButton: {
     borderColor: colors.ui.border,

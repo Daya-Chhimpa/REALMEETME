@@ -129,7 +129,7 @@ export const AddressScreen: React.FC = () => {
                 <View style={styles.header}>
                     <BackButton onPress={goBack} variant="default" />
                     <View style={styles.stepBadge}>
-                        <Text style={styles.stepText}>6 / 9</Text>
+                        <Text style={styles.stepText}>7 / 10</Text>
                     </View>
                 </View>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     StyleSheet,
@@ -10,6 +10,7 @@ import {
     Platform,
     ScrollView,
     ActivityIndicator,
+    Animated,
 } from 'react-native';
 
 import { colors, shadows, spacing } from '../theme/colors';
@@ -27,8 +28,14 @@ interface Interest {
     name: string;
 }
 
-export const InterestsScreen: React.FC = () => {
+// Decorative background icon
+const InterestsDecor: React.FC = () => (
+  <View style={styles.decorContainer}>
+    <Text style={styles.decorIcon}>🎨</Text>
+  </View>
+);
 
+export const InterestsScreen: React.FC = () => {
     const { navigate, goBack } = useNavigation();
     const dispatch = useAppDispatch();
     const { registrationDraft } = useAppSelector(state => state.auth);
@@ -36,12 +43,29 @@ export const InterestsScreen: React.FC = () => {
     const [interests, setInterests] = useState<Interest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Initialize with previously selected interests or empty array
-    // Note: This expects IDs if available, or might contain names from legacy code.
-    // Ideally we'd validte against available interests but we fetch them async.
     const [selectedInterests, setSelectedInterests] = useState<string[]>(
         registrationDraft?.interests || []
     );
+
+    // Animations
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.spring(slideAnim, {
+                toValue: 0,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            })
+        ]).start();
+    }, []);
 
     useEffect(() => {
         const fetchInterests = async () => {
@@ -70,7 +94,6 @@ export const InterestsScreen: React.FC = () => {
     };
 
     const handleNext = async () => {
-        // Save the array of IDs
         await dispatch(saveDraft({ interests: selectedInterests }));
         navigate('photos');
     };
@@ -78,12 +101,23 @@ export const InterestsScreen: React.FC = () => {
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.background.primary} />
-            <View style={styles.gradientBackground} />
+            <LinearGradient
+                colors={colors.gradient.dark as [string, string, string]}
+                style={styles.gradientBackground}
+            />
 
-            <View style={styles.content}>
+            <InterestsDecor />
+
+            <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                 <View style={styles.header}>
-                    <BackButton onPress={goBack} variant="default" style={{ marginBottom: spacing[4] }} />
-                    <Text style={styles.title}>Your interests</Text>
+                    <BackButton onPress={goBack} variant="default" />
+                    <View style={styles.stepBadge}>
+                        <Text style={styles.stepText}>8 / 10</Text>
+                    </View>
+                </View>
+
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title}>Your interests 🎨</Text>
                     <Text style={styles.subtitle}>
                         Select a few of your interests and let everyone know what you're passionate about.
                     </Text>
@@ -134,30 +168,28 @@ export const InterestsScreen: React.FC = () => {
                     </ScrollView>
                 )}
 
-                <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[styles.nextButton, selectedInterests.length === 0 && { opacity: 0.5 }]}
-                        onPress={handleNext}
-                        activeOpacity={0.8}
-                        disabled={selectedInterests.length === 0}
+                <TouchableOpacity
+                    style={[styles.nextButton, selectedInterests.length === 0 && styles.nextButtonDisabled]}
+                    onPress={handleNext}
+                    activeOpacity={0.8}
+                    disabled={selectedInterests.length === 0}
+                >
+                    <LinearGradient
+                        colors={
+                            selectedInterests.length > 0
+                                ? (colors.gradient.primary as [string, string])
+                                : [colors.ui.border, colors.ui.border]
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.nextButtonGradient}
                     >
-                        <LinearGradient
-                            colors={
-                                selectedInterests.length > 0
-                                    ? (colors.gradient.primary as [string, string])
-                                    : [colors.ui.borderDark, colors.ui.borderDark]
-                            }
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.nextButtonGradient}
-                        >
-                            <Text style={styles.nextButtonText}>
-                                NEXT
-                            </Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
-            </View>
+                        <Text style={styles.nextButtonText}>
+                            CONTINUE
+                        </Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </Animated.View>
         </SafeAreaView>
     );
 };
@@ -168,35 +200,60 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background.primary,
     },
     gradientBackground: {
+        position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+    },
+    decorContainer: {
         position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        backgroundColor: colors.background.secondary,
+        top: '12%',
+        right: -20,
+        opacity: 0.1,
+        transform: [{ rotate: '15deg' }, { scale: 1.5 }],
+        zIndex: 0,
+    },
+    decorIcon: {
+        fontSize: 180,
+        color: colors.brand.primary,
     },
     content: {
         flex: 1,
-        paddingHorizontal: SCREEN_WIDTH * 0.05,
+        paddingHorizontal: spacing[6],
         paddingTop: Platform.OS === 'ios' ? 20 : 40,
         paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+        justifyContent: 'space-between',
         maxWidth: 600,
         width: '100%',
         alignSelf: 'center',
     },
     header: {
         marginBottom: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    stepBadge: {
+        backgroundColor: colors.ui.overlay,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    stepText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: colors.text.secondary,
+    },
+    titleContainer: {
+        marginBottom: 20,
     },
     title: {
-        fontSize: Math.min(28, SCREEN_WIDTH * 0.08),
-        fontWeight: '700',
+        fontSize: 32,
+        fontWeight: '800',
         color: colors.text.primary,
-        marginBottom: 8,
+        marginBottom: 12,
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 16,
         color: colors.text.tertiary,
-        lineHeight: 20,
+        lineHeight: 24,
     },
     scrollView: {
         flex: 1,
@@ -243,25 +300,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    footer: {
-        marginTop: 10,
-    },
     nextButton: {
-        borderRadius: 12,
+        borderRadius: 28,
         overflow: 'hidden',
-        height: Math.max(50, SCREEN_WIDTH * 0.13),
+        marginTop: 20,
         ...shadows.primaryGlow,
     },
     nextButtonGradient: {
-        height: '100%',
+        height: 56,
         justifyContent: 'center',
         alignItems: 'center',
     },
+    nextButtonDisabled: {
+        opacity: 0.5,
+        elevation: 0,
+        shadowOpacity: 0,
+        backgroundColor: colors.ui.border,
+    },
     nextButtonText: {
         fontSize: 16,
-        fontWeight: '700',
+        fontWeight: 'bold',
         color: colors.text.primary,
-        letterSpacing: 1,
+        letterSpacing: 2,
     },
     loadingContainer: {
         flex: 1,

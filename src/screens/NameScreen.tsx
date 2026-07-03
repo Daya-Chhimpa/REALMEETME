@@ -72,7 +72,7 @@ export const NameScreen: React.FC = () => {
         <View style={styles.header}>
           <BackButton onPress={goBack} variant="default" />
           <View style={styles.stepBadge}>
-            <Text style={styles.stepText}>3 / 9</Text>
+            <Text style={styles.stepText}>2 / 10</Text>
           </View>
         </View>
 
